@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>MLTT Block Workshop</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <div class="brand">MLTT<span>Block Workshop</span></div>
+  <div class="level-head">
+    <div class="level-title" id="levelTitle">L0</div>
+    <div class="level-tag" id="levelTag"></div>
+  </div>
+  <div class="nav">
+    <button id="prevBtn" class="ghost" title="Previous level">◀</button>
+    <select id="levelSelect" aria-label="Select level"></select>
+    <button id="nextBtn2" class="ghost" title="Next level">▶</button>
+  </div>
+  <div class="actions">
+    <button id="checkBtn" class="primary">Check</button>
+    <button id="hintBtn" class="ghost">Hint</button>
+    <button id="resetBtn" class="ghost">Reset</button>
+  </div>
+  <div class="stars" id="stars" title="Stars for this level">☆☆☆</div>
+</header>
+
+<main>
+  <div id="blocklyDiv"></div>
+  <ol id="hintBox" class="hint-float"></ol>
+  <div id="status" class="status idle">Drag a term into the answer slot on the canvas, then press Check.</div>
+</main>
+
+<div id="overlay" class="overlay">
+  <div class="win">
+    <div class="win-stars" id="winStars">★★★</div>
+    <div class="win-text" id="winText"></div>
+    <div class="win-actions">
+      <button id="winClose" class="ghost">Stay here</button>
+      <button id="nextBtn" class="primary">Next level →</button>
+    </div>
+  </div>
+</div>
+
+<script src="vendor/package/blockly.min.js"></script>
+<script src="vendor/lexical/core.js"></script>
+<script src="core.js"></script>
+<script src="levels.js"></script>
+<script src="blocks.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

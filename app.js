@@ -1,0 +1,586 @@
+/* Game shell: Blockly workspace, levels, checking, hints, progress. */
+(function () {
+  'use strict';
+  const $ = (s) => document.querySelector(s);
+  const MLTT = window.MLTT;
+  // Levels currently exposed: L0-L16 (local variables, lambda, application, inference, Pi, unit, empty, product, Sigma, Id, universe); the rest stay in levels.js.
+  const LEVELS = window.LEVELS.levels.slice(0, 17);
+
+  const STORE = 'mltt.progress.v1';
+  const state = {
+    index: 0,
+    stars: {},
+    hintUsed: 0,
+    hintsShown: 0,
+    level: null,
+    busy: false,
+    loading: false,
+  };
+
+  let workspace = null;
+  let answerBlock = null;
+
+  // ---------- Utilities ----------
+  function loadProgress() {
+    try {
+      const raw = localStorage.getItem(STORE);
+      if (raw) Object.assign(state, JSON.parse(raw));
+    } catch (e) { /* ignore */ }
+    if (state.index >= LEVELS.length) state.index = 0;
+  }
+  function saveProgress() {
+    try {
+      localStorage.setItem(STORE, JSON.stringify({ index: state.index, stars: state.stars }));
+    } catch (e) { /* ignore */ }
+  }
+  function esc(s) {
+    return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  }
+  function debounce(fn, ms) {
+    let t = null;
+    return function () { clearTimeout(t); t = setTimeout(fn, ms); };
+  }
+
+  // ---------- Theme ----------
+  function makeTheme() {
+    const base = (Blockly.Themes && Blockly.Themes.Classic) || undefined;
+    return Blockly.Theme.defineTheme('mlttDark', {
+      base,
+      componentStyles: {
+        workspaceBackgroundColour: '#0f1218',
+        toolboxBackgroundColour: '#151a23',
+        toolboxForegroundColour: '#dfe6f0',
+        flyoutBackgroundColour: '#1a202b',
+        flyoutForegroundColour: '#dfe6f0',
+        flyoutOpacity: 1,
+        scrollbarColour: '#39445a',
+        scrollbarOpacity: 0.7,
+        insertionMarkerColour: '#8fd0a8',
+        insertionMarkerOpacity: 0.4,
+        cursorColour: '#8fd0a8',
+      },
+      fontStyle: { family: 'ui-sans-serif, system-ui, -apple-system, "PingFang SC", "Noto Sans SC", sans-serif', size: 14 },
+    });
+  }
+
+  // ---------- Blocks -> JSON ----------
+  function toJson(b) {
+    const j = { type: b.type, id: b.id, fields: {}, inputs: {} };
+    if (b.ttBinds) { j.binds = b.ttBinds; j.names = {}; }
+    for (const inp of b.inputList) {
+      for (const f of inp.fieldRow) if (f.name) j.fields[f.name] = f.getValue();
+      if (inp.connection) {
+        const t = inp.connection.targetBlock();
+        if (t) j.inputs[inp.name] = toJson(t);
+      }
+    }
+    if (b.ttBinds && b.ttNameFields) {
+      for (const uids of Object.values(b.ttBinds)) {
+        for (const uid of uids) {
+          const fname = b.ttNameFields[uid];
+          j.names[uid] = fname ? (b.getFieldValue(fname) || 'x') : 'x';
+        }
+      }
+    }
+    return j;
+  }
+
+  // ---------- Local variable validation ----------
+  /** Binders avoid outer names by default; rename automatically on conflict. */
+  function refreshBinderNames() {
+    for (const b of workspace.getAllBlocks(false)) {
+      if (!b.ttBinds || !b.ttNameFields) continue;
+      const outer = window.LBM.bindersInScope(b);
+      if (!outer.length) continue;
+      const used = new Set(outer.map((o) => o.name));
+      for (const uids of Object.values(b.ttBinds)) {
+        for (const uid of uids) {
+          const fname = b.ttNameFields[uid];
+          if (!fname || !b.getField(fname)) continue;
+          const cur = b.getFieldValue(fname);
+          if (!used.has(cur)) { used.add(cur); continue; }
+          const fresh = window.LBM.nextBinderName(cur, used);
+          used.add(fresh);
+          b.setFieldValue(fresh, fname);
+        }
+      }
+    }
+  }
+
+  function refreshVars() {
+    if (!workspace || state.busy) return;
+    state.busy = true;
+    try {
+      refreshBinderNames();
+      for (const b of workspace.getBlocksByType('tt_var', false)) {
+        const f = b.getField('REF');
+        if (!f) continue;
+        let ref = window.LBM.decodeRef(f.getValue());
+        const list = window.LBM.bindersInScope(b);
+        // Empty reference: bind by saved name when possible, otherwise to the nearest binder.
+        if (!ref.uid && list.length) {
+          const target = (ref.name && list.find((x) => x.name === ref.name)) || list[0];
+          f.setValue(window.LBM.encodeRef(target.uid, target.name));
+          ref = { uid: target.uid, name: target.name };
+        }
+        const found = list.find((x) => x.uid === ref.uid) ||
+          (ref.name ? list.find((x) => x.name === ref.name) : null);
+        if (found) {
+          b.setWarningText(null);
+          b.setColour('#d7ccc8');
+          b.setTooltip('Variable ' + found.name + ': bound at ' + (found.block.type || 'binder'));
+        } else if (ref.uid || ref.name) {
+          b.setWarningText('Variable "' + (ref.name || '?') + '" is out of scope: drag it back inside its binder');
+          b.setColour('#8b93a1');
+        }
+        try { f.forceRerender(); } catch (e) { /* older API */ }
+      }
+    } finally {
+      state.busy = false;
+    }
+  }
+
+  // ---------- Panel / header ----------
+  function renderPanel() {
+    const lv = state.level;
+    $('#levelTitle').textContent = lv.id + ' · ' + lv.title;
+    $('#levelTag').textContent = lv.tag;
+    renderStars();
+    renderHints();
+  }
+
+  function renderStars() {
+    const n = state.stars[state.level.id] || 0;
+    $('#stars').textContent = '★'.repeat(n) + '☆'.repeat(3 - n);
+  }
+
+  function renderHints() {
+    const lv = state.level;
+    const box = $('#hintBox');
+    box.innerHTML = '';
+    for (let i = 0; i < state.hintsShown; i++) {
+      const li = document.createElement('li');
+      li.textContent = lv.hints[i];
+      box.appendChild(li);
+    }
+    box.classList.toggle('show', state.hintsShown > 0);
+    $('#hintBtn').disabled = state.hintsShown >= lv.hints.length;
+  }
+
+  function setStatus(html, kind) {
+    const el = $('#status');
+    el.className = 'status ' + (kind || '');
+    el.innerHTML = html;
+  }
+
+  // ---------- Toolbox ----------
+  const GROUPS = [
+    { name: 'Types', colour: '#5b8def', types: ['tt_pi', 'tt_sigma', 'tt_id', 'tt_nat', 'tt_bool', 'tt_empty', 'tt_unit', 'tt_U'] },
+    { name: 'Terms', colour: '#4f9d76', types: ['tt_lam', 'tt_var', 'tt_app', 'tt_pair', 'tt_zero', 'tt_suc', 'tt_true', 'tt_false', 'tt_star', 'tt_refl', 'tt_let', 'tt_annot', 'tt_hole'] },
+    { name: 'Eliminators', colour: '#c47a3d', types: ['tt_natrec', 'tt_unitrec', 'tt_sigma_ind', 'tt_J', 'tt_if', 'tt_absurd'] },
+    { name: 'Lemmas', colour: '#7b6ee0', types: ['tt_lemma'] },
+  ];
+
+  function parseXml(str) {
+    if (Blockly.utils && Blockly.utils.xml && Blockly.utils.xml.textToDom) {
+      return Blockly.utils.xml.textToDom(str);
+    }
+    return new DOMParser().parseFromString(str, 'text/xml').documentElement;
+  }
+
+  function toolboxXml() {
+    const pal = new Set(state.level.palette);
+    let xml = '<xml>';
+    // Only term-level givens (f : A -> B, x : A) belong in the toolbox; hide A : Type and similar.
+    let hasTermGiven = false;
+    try {
+      const gc = MLTT.buildCtx(state.level.givens);
+      hasTermGiven = state.level.givens.some((g, i) => !(gc[i] && gc[i].ty && gc[i].ty.t === 'U'));
+    } catch (e) { hasTermGiven = state.level.givens.length > 0; }
+    if (hasTermGiven) {
+      xml += '<category name="Given" colour="#6b7a93">';
+      xml += '<block type="tt_given"></block>';
+      xml += '</category>';
+    }
+    for (const g of GROUPS) {
+      const types = g.types.filter((t) => pal.has(t));
+      if (!types.length) continue;
+      xml += '<category name="' + g.name + '" colour="' + g.colour + '">';
+      for (const t of types) {
+        xml += '<block type="' + t + '">';
+        if (t === 'tt_lemma') xml += '<field name="NAME">add</field>';
+        if (t === 'tt_var') {
+          // Toolbox variable blocks show the answer slot local variable by default (no uid yet; it binds on drop).
+          const nm = state.level.defaultVarName || (state.level.answerBinder && state.level.answerBinder.name) || 'x';
+          xml += '<field name="REF">' + esc(window.LBM.encodeRef('', nm)) + '</field>';
+        }
+        xml += '</block>';
+      }
+      xml += '</category>';
+    }
+    xml += '</xml>';
+    return parseXml(xml);
+  }
+
+  // ---------- Levels ----------
+  function loadLevel(i) {
+    state.loading = true;
+    state.index = (i + LEVELS.length) % LEVELS.length;
+    state.level = LEVELS[state.index];
+    state.hintUsed = 0;
+    state.hintsShown = 0;
+
+    workspace.clear();
+    answerBlock = null;
+    // Read by tt_given init (toolbox blocks are instantiated in updateToolbox).
+    let ctx0 = [];
+    try { ctx0 = MLTT.buildCtx(state.level.givens); } catch (e) { ctx0 = []; }
+    window.GAME_GIVENS = state.level.givens.map((g, i) => {
+      let t = '?';
+      try { t = MLTT.show(ctx0.slice(0, i), g.ty); } catch (e) { t = '?'; }
+      return { label: g.name + ' : ' + t, name: g.name };
+    });
+    // Local variables supplied by the answer block (L3 has f and x; levels without them are empty).
+    const binders = state.level.answerBinders || [];
+    let ctxB = [];
+    try { ctxB = MLTT.buildCtx(state.level.givens); } catch (e) { ctxB = []; }
+    window.GAME_ANSWER_BINDERS = binders.map((b) => {
+      let tyText = '?';
+      try { tyText = MLTT.show(ctxB, b.ty); } catch (e) { /* ignore */ }
+      try {
+        MLTT.sortOf(ctxB, b.ty);
+        ctxB.push({ name: b.name, ty: MLTT.evalTm(MLTT.envOf(ctxB), b.ty) });
+      } catch (e) { /* ignore */ }
+      return { name: b.name, tyText };
+    });
+    window.GAME_HAS_BINDER = binders.length > 0;
+    window.GAME_ANSWER_CTX = givensList();
+    window.GAME_INFER = !!state.level.inferTerm;
+    window.GAME_INFER_TERM = '';
+    if (window.GAME_INFER) {
+      try { window.GAME_INFER_TERM = MLTT.show(ctxWithBinder(), state.level.inferTerm); }
+      catch (e) { window.GAME_INFER_TERM = '?'; }
+    }
+    workspace.updateToolbox(toolboxXml());
+    try { workspace.scroll(0, 0); } catch (e) { /* ignore */ }
+    answerBlock = ensureAnswer();
+    renderPanel();
+    setStatus(state.level.inferTerm
+      ? 'Drag the inferred type into the hole after the term, then press Check.'
+      : 'Drag blocks from the left onto the canvas and put the term into the answer slot; other blocks can be scratch.', 'idle');
+    $('#levelSelect').value = String(state.index);
+    saveProgress();
+    state.loading = false;
+    setTimeout(() => {
+      try { Blockly.svgResize(workspace); } catch (e) {}
+      centerOnAnswer();
+    }, 50);
+  }
+
+  // ---------- Answer slot ----------
+  /** Type text for each answer-slot local variable, in declaration order (later ones may depend on earlier ones). */
+  function binderTypesText() {
+    const lv = state.level;
+    const binders = lv.answerBinders || [];
+    let ctx = [];
+    try { ctx = MLTT.buildCtx(lv.givens); } catch (e) { ctx = []; }
+    return binders.map((b) => {
+      let t = '?';
+      try { t = MLTT.show(ctx, b.ty); } catch (e) { /* ignore */ }
+      try {
+        MLTT.sortOf(ctx, b.ty);
+        ctx.push({ name: b.name, ty: MLTT.evalTm(MLTT.envOf(ctx), b.ty) });
+      } catch (e) { /* ignore */ }
+      return t;
+    });
+  }
+
+  /** Given context (hides universes such as A : Type), one item per line. */
+  function givensList() {
+    const lv = state.level;
+    let ctx = [];
+    try { ctx = MLTT.buildCtx(lv.givens); } catch (e) { ctx = []; }
+    const parts = [];
+    lv.givens.forEach((g, i) => {
+      if (ctx[i] && ctx[i].ty && ctx[i].ty.t === 'U') return;
+      let t = '?';
+      try { t = MLTT.show(ctx.slice(0, i), g.ty); } catch (e) { t = '?'; }
+      parts.push(g.name + ' : ' + t);
+    });
+    return parts;
+  }
+
+  /** Level context plus answer-slot local variables (values match checkLevel). */
+  function ctxWithBinder() {
+    const lv = state.level;
+    let ctx = [];
+    try { ctx = MLTT.buildCtx(lv.givens); } catch (e) { ctx = []; }
+    for (const b of (lv.answerBinders || [])) {
+      try {
+        MLTT.sortOf(ctx, b.ty);
+        ctx.push({ name: b.name, ty: MLTT.evalTm(MLTT.envOf(ctx), b.ty) });
+      } catch (e) { /* ignore */ }
+    }
+    return ctx;
+  }
+
+  function goalText() {
+    try { return MLTT.show(ctxWithBinder(), state.level.goal); } catch (e) { return '?'; }
+  }
+
+  /** Write "knowns, f : ..., x : ... |- answer-slot : goal" onto the answer block. */
+  function setAnswerLabels(block, setName) {
+    if (!block) return;
+    try {
+      const lv = state.level;
+      const binders = lv.answerBinders || [];
+      givensList().forEach((text, i) => {
+        const cf = 'CTX' + i;
+        if (block.getField(cf) && block.getFieldValue(cf) !== text) {
+          block.setFieldValue(text, cf);
+        }
+      });
+      const types = binderTypesText();
+      binders.forEach((b, i) => {
+        const nf = 'BNAME' + i;
+        const tf = 'BTYPE' + i;
+        if (!block.getField(nf)) return;
+        if (setName && block.getFieldValue(nf) !== b.name) block.setFieldValue(b.name, nf);
+        if (block.getFieldValue(tf) !== types[i]) block.setFieldValue(types[i], tf);
+      });
+      const goal = goalText();
+      const goalField = block.getField('GOAL');
+      if (goalField && block.getFieldValue('GOAL') !== goal) block.setFieldValue(goal, 'GOAL');
+      const inferField = block.getField('INFERTERM');
+      if (inferField) {
+        const text = window.GAME_INFER_TERM || '';
+        if (block.getFieldValue('INFERTERM') !== text) block.setFieldValue(text, 'INFERTERM');
+      }
+    } catch (e) { /* older API */ }
+  }
+
+  /** The canvas always has one preferred "answer" block; recreate it if deleted. */
+  function ensureAnswer() {
+    if (!workspace) return null;
+    const list = workspace.getBlocksByType('tt_answer', false);
+    if (list.length > 1) {
+      for (let i = 1; i < list.length; i++) {
+        list[i].setWarningText('Duplicate answer slot: only the first one is checked');
+        list[i].setColour('#5b6475');
+      }
+    }
+    if (list.length) {
+      setAnswerLabels(list[0], false);
+      return list[0];
+    }
+    const b = workspace.newBlock('tt_answer');
+    try { b.initSvg(); } catch (e) { /* Blockly 11 initializes automatically */ }
+    b.render();
+    b.moveBy(80, 80);
+    setAnswerLabels(b, true);
+    return b;
+  }
+
+  function centerOnAnswer() {
+    if (!workspace || !answerBlock) return;
+    try { workspace.centerOnBlock(answerBlock.id); } catch (e) { /* ignore */ }
+  }
+
+  function answerTerm() {
+    const ans = ensureAnswer();
+    if (!ans) return { error: 'Cannot find the "answer" block on the canvas: press Reset to restore it.' };
+    return { answer: ans, term: ans.getInputTargetBlock('TERM') };
+  }
+
+  function blockCount(b) {
+    let n = 1;
+    for (const inp of b.inputList) {
+      if (inp.connection) {
+        const t = inp.connection.targetBlock();
+        if (t) n += blockCount(t);
+      }
+    }
+    return n;
+  }
+
+  // ---------- Checking ----------
+  function doCheck(showOverlay) {
+    refreshVars();
+    const slot = answerTerm();
+    if (slot.error) {
+      setStatus(slot.error, 'warn');
+      return;
+    }
+    if (!slot.term) {
+      const tops = workspace.getTopBlocks(false).filter((b) => !!b.outputConnection);
+      setStatus(state.level.inferTerm
+        ? 'The type slot is still empty: drag a type into the hole after the term.'
+        : (tops.length
+          ? 'The "answer" slot is still empty: drag the term from the canvas into the "answer ⊢" block.'
+          : 'The "answer" slot is still empty: drag an expression in from the left.'), 'warn');
+      return;
+    }
+    const term = slot.term;
+    let r;
+    try {
+      // Start from the answer block itself so its local variables are in scope.
+      r = MLTT.checkBlocks(state.level, toJson(slot.answer));
+    } catch (e) {
+      setStatus('Internal error: ' + esc(e.message), 'err');
+      return;
+    }
+    if (r.ok) {
+      const n = blockCount(term);
+      const lv = state.level;
+      let stars = 1;
+      if (n <= lv.par && state.hintUsed === 0) stars = 3;
+      else if (n <= lv.par + 2 && state.hintUsed <= 1) stars = 2;
+      state.stars[lv.id] = Math.max(state.stars[lv.id] || 0, stars);
+      saveProgress();
+      renderStars();
+      setStatus('✓ Correct type.<span class="meta">' + n + ' blocks · target ' + lv.par + ' blocks · ' +
+        (state.hintUsed ? 'used ' + state.hintUsed + ' hints' : 'no hints') + '</span>', 'ok');
+      if (showOverlay) showWin(stars, n);
+      return;
+    }
+    if (r.holes) {
+      setStatus('There are <b>' + r.holes.length + '</b> holes left to fill.', 'warn');
+      return;
+    }
+    const e = r.error || {};
+    const where = e.src ? '<span class="meta">(highlighted the failing block)</span>' : '';
+    setStatus('<b>' + esc(e.code || 'E_ERROR') + '</b> ' + esc(e.message || 'check failed') + where, 'err');
+    if (e.src && workspace) {
+      try { workspace.highlightBlock(e.src); } catch (err) { /* ignore */ }
+    }
+  }
+
+  // ---------- Win ----------
+  function showWin(stars, n) {
+    const lv = state.level;
+    $('#winStars').textContent = '★'.repeat(stars) + '☆'.repeat(3 - stars);
+    $('#winText').innerHTML = '"' + esc(lv.title) + '" passed · ' + n + ' blocks<br><span class="mono">' +
+      esc(lv.solutionText) + '</span>';
+    $('#overlay').classList.add('show');
+    $('#nextBtn').textContent = state.index + 1 < LEVELS.length ? 'Next level →' : 'Back to level 1';
+  }
+
+  // ---------- Initialization ----------
+  function init() {
+    if (typeof Blockly === 'undefined') {
+      $('#blocklyDiv').innerHTML = '<div class="fatal">Blockly failed to load. Make sure <code>vendor/package/blockly.min.js</code> exists.</div>';
+      return;
+    }
+    loadProgress();
+    state.level = LEVELS[state.index];
+
+    workspace = Blockly.inject('blocklyDiv', {
+      toolbox: toolboxXml(),
+      renderer: 'thrasos',
+      theme: makeTheme(),
+      grid: { spacing: 26, length: 3, colour: '#1d2430', snap: false },
+      zoom: { controls: true, wheel: true, startScale: 1, minScale: 0.35, maxScale: 1.6 },
+      trashcan: true,
+      move: { scrollbars: true, drag: true, wheel: true },
+      sounds: false,
+      media: 'vendor/package/media/',
+    });
+
+    // lexical-variables flydown system (hover a local variable to pop out a getter block).
+    if (window.LexicalVariablesPlugin) {
+      try { window.LexicalVariablesPlugin.init(workspace); }
+      catch (e) { console.warn('LexicalVariablesPlugin.init failed', e); }
+    }
+
+    // Level dropdown
+    const sel = $('#levelSelect');
+    LEVELS.forEach((lv, i) => {
+      const o = document.createElement('option');
+      o.value = String(i);
+      o.textContent = lv.id + ' ' + lv.title;
+      sel.appendChild(o);
+    });
+    sel.addEventListener('change', () => loadLevel(parseInt(sel.value, 10)));
+    if (LEVELS.length <= 1) {
+      const nav = document.querySelector('.nav');
+      if (nav) nav.style.display = 'none';
+    }
+
+    $('#checkBtn').addEventListener('click', () => doCheck(true));
+    $('#hintBtn').addEventListener('click', () => {
+      const lv = state.level;
+      if (state.hintsShown < lv.hints.length) {
+        state.hintsShown++;
+        state.hintUsed++;
+        renderHints();
+      }
+    });
+    $('#resetBtn').addEventListener('click', () => {
+      if (confirm('Clear all blocks in this level?')) loadLevel(state.index);
+    });
+    $('#prevBtn').addEventListener('click', () => loadLevel(state.index - 1));
+    $('#nextBtn2').addEventListener('click', () => loadLevel(state.index + 1));
+    $('#winClose').addEventListener('click', () => $('#overlay').classList.remove('show'));
+    $('#nextBtn').addEventListener('click', () => {
+      $('#overlay').classList.remove('show');
+      loadLevel(state.index + 1);
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); doCheck(true); }
+    });
+
+    const scheduleRefresh = debounce(() => {
+      if (state.loading) return;
+      refreshVars();
+      // The term in the slot changed; re-render the answer block (large terms can overflow the border).
+      if (answerBlock) { try { answerBlock.render(); } catch (e) { /* ignore */ } }
+      const slot = answerTerm();
+      const term = slot.term;
+      if (term && !$('#status').classList.contains('ok')) {
+        // Recheck silently only when complete, to avoid noise while building.
+        const r = MLTT.checkBlocks(state.level, toJson(slot.answer));
+        if (r.ok) setStatus('✓ Looks right. Press Check to confirm.', 'ok');
+      }
+    }, 160);
+
+    workspace.addChangeListener((e) => {
+      if (state.loading || e.isUiEvent) return;
+      if (e.type === Blockly.Events.BLOCK_CHANGE || e.type === Blockly.Events.BLOCK_MOVE ||
+        e.type === Blockly.Events.BLOCK_CREATE || e.type === Blockly.Events.BLOCK_DELETE) {
+        scheduleRefresh();
+        // Clear old error highlights
+        try { workspace.highlightBlock(null); } catch (err) {}
+      }
+      if (e.type === Blockly.Events.SELECTED) {
+        highlightBinderFor(e.newElementId);
+      }
+    });
+
+    window.addEventListener('resize', () => { try { Blockly.svgResize(workspace); } catch (e) {} });
+
+    loadLevel(state.index);
+  }
+
+  function highlightBinderFor(id) {
+    if (!id || !workspace) return;
+    const b = workspace.getBlockById(id);
+    if (!b || b.type !== 'tt_var') return;
+    const ref = window.LBM.decodeRef(b.getFieldValue('REF'));
+    const found = window.LBM.findBinder(b, ref.uid);
+    if (found && found.block) {
+      try { workspace.highlightBlock(found.block.id); } catch (e) {}
+      setTimeout(() => { try { workspace.highlightBlock(null); } catch (e) {} }, 1200);
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', init);
+
+  // Debug/test entry points
+  window.__mltt = {
+    refreshVars: () => refreshVars(),
+    check: () => doCheck(false),
+    get state() { return state; },
+    get workspace() { return workspace; },
+  };
+})();

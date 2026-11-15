@@ -1,11 +1,11 @@
 'use strict';
-/* Zero-dependency static server: node server.js [port] [dir] */
+/* Zero-dependency static server: npm start -- [port] [dir] */
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
 const port = parseInt(process.argv[2] || '8000', 10);
-const root = path.resolve(process.argv[3] || __dirname);
+const root = path.resolve(process.argv[3] || path.join(__dirname, '..'));
 const types = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',

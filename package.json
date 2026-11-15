@@ -1,5 +1,18 @@
 {
-  "dependencies": {
+  "name": "mltt-block-workshop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A bilingual Blockly workshop for Martin-Lof type theory with real-time bidirectional type checking.",
+  "scripts": {
+    "start": "node tools/server.js",
+    "dev": "node tools/server.js",
+    "demo": "node tools/demo.js",
+    "test": "node test/test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
     "playwright": "^1.48.2"
   }
 }

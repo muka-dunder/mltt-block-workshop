@@ -1,7 +1,7 @@
 'use strict';
 const assert = require('assert');
-const M = require('../core.js');
-const { levels } = require('../levels.js');
+const M = require('../src/core.js');
+const { levels } = require('../src/levels.js');
 const natFun = { givens: [], goal: M.Pi('_', M.NAT, M.Pi('_', M.NAT, M.NAT)) };
 
 let pass = 0, fail = 0;

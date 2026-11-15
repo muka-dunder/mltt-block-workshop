@@ -5,31 +5,37 @@ Build Martin-Lof type theory terms with Blockly and get **bidirectional type che
 ## Run
 
 ```bash
-cd /workspace/mltt
-node server.js 8000
+npm install
+npm start
 # open http://localhost:8000
 ```
+
+Requires Node.js 18 or later. Use `npm run dev` for the same local server, or
+`npm start -- 8080` to choose another port. No build command is needed.
 
 You can also open `index.html` directly (all scripts are classic scripts, so `file://` works).
 
 Command-line demo / regression:
 
 ```bash
-node demo.js        # print the knowns, goals, and reference solutions for all 23 levels
-node test/test.js   # 58 checker + scope tests
+npm run demo       # print all 23 levels and reference solutions
+npm test           # 58 checker + scope tests
 ```
 
 ## Layout
 
 ```
-core.js      Pure-JS MLTT core: de Bruijn, NbE, conv, check/infer, printing
-levels.js    23 levels (written as named open terms; close() converts to de Bruijn)
-blocks.js    Blockly block definitions + lexical binding module (LBM) + custom variable field
-app.js       workspace, levels, checking, hints, stars, localStorage progress
-index.html / style.css
-server.js    zero-dependency static server
-vendor/      Blockly 11.2.2 (UMD + media) + localized lexical-variables (UMD)
-tools/       ui-shots.js (headless Chromium screenshots/smoke tests), get-blockly.js
+index.html        browser entry point
+src/
+  core.js         pure-JS MLTT checker, evaluation and printing
+  levels.js       23 levels and reference solutions
+  blocks.js       Blockly definitions and lexical binding
+  app.js          workspace, checking, hints and progress
+  style.css       application styles
+tools/            local server, CLI demo and browser utilities
+test/             checker and scope regression tests
+vendor/           bundled Blockly and lexical-variables assets
+package.json      project metadata, commands and development dependencies
 ```
 
 ## Implemented blocks
@@ -54,7 +60,7 @@ Some levels run in **type-inference mode**: the answer slot shows a fixed term (
 
 Levels can also set `requireBlock`; `checkBlocks` rejects an otherwise well-typed answer that does not contain the required block (L10 uses this to force the unit computation rule).
 
-`core.js`'s `elabBlock` treats `tt_answer` as a transparent container (`tt_goal` is kept as an old name), so pure Node tests can also wrap block JSON directly.
+`src/core.js`'s `elabBlock` treats `tt_answer` as a transparent container (`tt_goal` is kept as an old name), so pure Node tests can also wrap block JSON directly.
 
 ## Lexical binding module (LBM)
 
@@ -87,7 +93,7 @@ Six layers of defense:
 
 ## Levels
 
-> Currently the UI exposes only L0-L16 (`levels.slice(0, 17)` in `app.js`); the remaining level data is still there and can be re-enabled.
+> Currently the UI exposes only L0-L16 (`levels.slice(0, 17)` in `src/app.js`); the remaining level data is still there and can be re-enabled.
 
 | # | Goal | New blocks |
 |---|---|---|

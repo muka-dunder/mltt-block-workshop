@@ -1,7 +1,7 @@
 'use strict';
 /* Command-line demo: print each level knowns, goal, and reference solution, then verify. */
-const M = require('./core.js');
-const { levels } = require('./levels.js');
+const M = require('../src/core.js');
+const { levels } = require('../src/levels.js');
 
 const line = '-'.repeat(64);
 console.log('\nMLTT Block Game - Level List\n' + line);
@@ -21,4 +21,4 @@ for (const lv of levels) {
   const r = M.checkLevel(lv, lv.solution);
   console.log('  solution ' + lv.solutionText + '   ' + (r.ok ? '[ok] passed' : '[FAIL] ' + r.error.message));
 }
-console.log('\n' + line + '\n' + levels.length + ' levels. Run node test/test.js for regression tests.\n');
+console.log('\n' + line + '\n' + levels.length + ' levels. Run npm test for regression tests.\n');

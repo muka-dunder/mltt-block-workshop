@@ -2,17 +2,24 @@
   "name": "mltt-block-workshop",
   "version": "0.1.0",
   "private": true,
-  "description": "A bilingual Blockly workshop for Martin-Lof type theory with real-time bidirectional type checking.",
+  "description": "A Blockly workshop for Martin-Lof type theory with real-time bidirectional type checking.",
   "scripts": {
-    "start": "node tools/server.js",
-    "dev": "node tools/server.js",
-    "demo": "node tools/demo.js",
-    "test": "node test/test.js"
+    "start": "vite",
+    "dev": "vite",
+    "demo": "node tools/cli/demo.js",
+    "test": "node test/test.js",
+    "build": "vite build",
+    "preview": "vite preview"
   },
   "engines": {
-    "node": ">=18"
+    "node": "^18.0.0 || ^20.0.0 || >=22.0.0"
   },
   "devDependencies": {
-    "playwright": "^1.48.2"
+    "playwright": "1.56.1",
+    "vite": "6.4.6"
+  },
+  "dependencies": {
+    "@mit-app-inventor/blockly-block-lexical-variables": "11.0.3",
+    "blockly": "11.2.2"
   }
 }

@@ -1,6 +1,6 @@
 # MLTT Block Workshop
 
-Build Martin-Lof type theory terms with Blockly and get **bidirectional type checking** in real time. No build step; Blockly is bundled locally.
+Build Martin-Lof type theory terms with Blockly and get **bidirectional type checking** in real time. Runtime dependencies are installed with npm; Vite provides development and production builds.
 
 ## Run
 
@@ -10,10 +10,20 @@ npm start
 # open http://localhost:8000
 ```
 
-Requires Node.js 18 or later. Use `npm run dev` for the same local server, or
-`npm start -- 8080` to choose another port. No build command is needed.
+Requires Node.js 18, 20, or 22 and later. Use `npm run dev` for the same development
+server, or `npm start -- --port 8080` to choose another port. Open the app through
+HTTP; the source HTML uses module imports and cannot be opened directly via `file://`.
 
-You can also open `index.html` directly (all scripts are classic scripts, so `file://` works).
+```bash
+npm run build     # generate the standalone static site in dist/
+npm run preview   # serve dist/ locally at http://localhost:8000
+```
+
+Blockly 11.2.2 and the lexical-variable plugin 11.0.3 are pinned npm dependencies.
+Commit `package-lock.json`; use `npm ci` for reproducible installs. Blockly media
+is served from the installed package in development and copied into `dist/media/`
+at build time. The output loads its assets locally and needs no CDN. `node_modules/`
+and `dist/` are generated and stay out of Git.
 
 Command-line demo / regression:
 
@@ -25,16 +35,19 @@ npm test           # 58 checker + scope tests
 ## Layout
 
 ```
-index.html        browser entry point
+index.html        HTML entry point
+vite.config.mjs   development/build settings and Blockly media handling
 src/
-  core.js         pure-JS MLTT checker, evaluation and printing
-  levels.js       23 levels and reference solutions
-  blocks.js       Blockly definitions and lexical binding
-  app.js          workspace, checking, hints and progress
-  style.css       application styles
-tools/            local server, CLI demo and browser utilities
+  main.js         npm imports and application initialization
+  core/mltt.js    pure-JS MLTT checker, evaluation and printing
+  levels/index.js 23 levels and reference solutions
+  blockly/blocks.js  Blockly definitions and lexical binding
+  ui/app.js       workspace, checking, hints and progress
+  ui/style.css    application styles
+tools/
+  cli/demo.js     command-line level demonstration
+  browser/        Playwright checks and screenshot utilities
 test/             checker and scope regression tests
-vendor/           bundled Blockly and lexical-variables assets
 package.json      project metadata, commands and development dependencies
 ```
 
@@ -60,7 +73,7 @@ Some levels run in **type-inference mode**: the answer slot shows a fixed term (
 
 Levels can also set `requireBlock`; `checkBlocks` rejects an otherwise well-typed answer that does not contain the required block (L10 uses this to force the unit computation rule).
 
-`src/core.js`'s `elabBlock` treats `tt_answer` as a transparent container (`tt_goal` is kept as an old name), so pure Node tests can also wrap block JSON directly.
+`src/core/mltt.js`'s `elabBlock` treats `tt_answer` as a transparent container (`tt_goal` is kept as an old name), so pure Node tests can also wrap block JSON directly.
 
 ## Lexical binding module (LBM)
 
@@ -93,7 +106,7 @@ Six layers of defense:
 
 ## Levels
 
-> Currently the UI exposes only L0-L16 (`levels.slice(0, 17)` in `src/app.js`); the remaining level data is still there and can be re-enabled.
+> Currently the UI exposes only L0-L16 (`levels.slice(0, 17)` in `src/ui/app.js`); the remaining level data is still there and can be re-enabled.
 
 | # | Goal | New blocks |
 |---|---|---|
@@ -126,8 +139,6 @@ Stars: <= reference block count with no hints = 3 stars; <= reference + 2 with <
 ## Tests
 
 `node test/test.js`: 23 level reference solutions, 9 error paths, 13 scope/elaboration cases (including answer slots and required-block checks), 7 NbE cases, 4 triple-negation cases for L22, and 2 printing cases - 58 items total.
-
-`tools/ui-shots.js` uses a headless Playwright browser to actually build L0 and L4, click Check, and take screenshots (`shot-l0.png`, `shot-l4.png`, `shot-escape.png`, `shot-mobile.png`). Running it requires `npm i playwright` and `npx playwright install chromium`.
 
 ## Known limitations
 

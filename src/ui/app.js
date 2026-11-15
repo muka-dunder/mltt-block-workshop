@@ -3,8 +3,10 @@
   'use strict';
   const $ = (s) => document.querySelector(s);
   const MLTT = window.MLTT;
+  const t = window.I18N.t;
   // Levels currently exposed: L0-L16 (local variables, lambda, application, inference, Pi, unit, empty, product, Sigma, Id, universe); the rest stay in levels.js.
-  const LEVELS = window.LEVELS.levels.slice(0, 17);
+  let LEVELS = window.LEVELS.levels.slice(0, 17).map(window.I18N.level);
+  let statusRenderer = null;
 
   const STORE = 'mltt.progress.v1';
   const state = {
@@ -21,6 +23,57 @@
   let answerBlock = null;
 
   // ---------- Utilities ----------
+  function renderLanguage() {
+    document.title = 'MLTT ' + t('brand');
+    $('.brand span').textContent = t('brand');
+    for (const [id, key] of Object.entries({ checkBtn: 'check', hintBtn: 'hint', resetBtn: 'reset', winClose: 'stay' })) {
+      $('#' + id).textContent = t(key);
+    }
+    for (const [id, key] of Object.entries({ prevBtn: 'previous', nextBtn2: 'next', stars: 'stars' })) {
+      $('#' + id).title = t(key);
+    }
+    $('#levelSelect').setAttribute('aria-label', t('selectLevel'));
+    $('#languageSelect').setAttribute('aria-label', t('language'));
+    $('#languageSelect').value = window.I18N.locale;
+    $('#nextBtn').textContent = state.index + 1 < LEVELS.length ? t('nextAction') : t('back');
+    for (const option of $('#levelSelect').options) {
+      const lv = LEVELS[Number(option.value)];
+      option.textContent = lv.id + ' ' + lv.title;
+    }
+  }
+
+  function switchLanguage(locale) {
+    if (locale === window.I18N.locale) return;
+    // XML retains block IDs, positions, field values and binder references.
+    // Keep this in memory so a storage-disabled browser can switch safely too.
+    const xml = Blockly.Xml.workspaceToDom(workspace);
+    const view = { scale: workspace.scale, x: workspace.scrollX, y: workspace.scrollY };
+    const previousStatus = statusRenderer;
+    const overlayOpen = $('#overlay').classList.contains('show');
+    state.loading = true;
+    Blockly.Events.disable();
+    try {
+      window.I18N.setLocale(locale);
+      LEVELS = window.LEVELS.levels.slice(0, 17).map(window.I18N.level);
+      state.level = LEVELS[state.index];
+      workspace.clear();
+      workspace.updateToolbox(toolboxXml());
+      Blockly.Xml.domToWorkspace(xml, workspace);
+      answerBlock = ensureAnswer();
+      workspace.setScale(view.scale);
+      workspace.scroll(view.x, view.y);
+      renderLanguage();
+      renderPanel();
+      refreshVars();
+      if (previousStatus) setStatus(previousStatus.html, previousStatus.kind);
+      if (overlayOpen) showWin(state.stars[state.level.id] || 0, blockCount(answerBlock.getInputTargetBlock('TERM')));
+      Blockly.svgResize(workspace);
+    } finally {
+      Blockly.Events.enable();
+      state.loading = false;
+    }
+  }
+
   function loadProgress() {
     try {
       const raw = localStorage.getItem(STORE);
@@ -128,9 +181,9 @@
         if (found) {
           b.setWarningText(null);
           b.setColour('#d7ccc8');
-          b.setTooltip('Variable ' + found.name + ': bound at ' + (found.block.type || 'binder'));
+          b.setTooltip(t('variable', { name: found.name, binder: found.block.type || 'binder' }));
         } else if (ref.uid || ref.name) {
-          b.setWarningText('Variable "' + (ref.name || '?') + '" is out of scope: drag it back inside its binder');
+          b.setWarningText(t('scope', { name: ref.name || '?' }));
           b.setColour('#8b93a1');
         }
         try { f.forceRerender(); } catch (e) { /* older API */ }
@@ -168,6 +221,8 @@
   }
 
   function setStatus(html, kind) {
+    statusRenderer = { html, kind };
+    if (typeof html === 'function') html = html();
     const el = $('#status');
     el.className = 'status ' + (kind || '');
     el.innerHTML = html;
@@ -198,14 +253,14 @@
       hasTermGiven = state.level.givens.some((g, i) => !(gc[i] && gc[i].ty && gc[i].ty.t === 'U'));
     } catch (e) { hasTermGiven = state.level.givens.length > 0; }
     if (hasTermGiven) {
-      xml += '<category name="Given" colour="#6b7a93">';
+      xml += '<category name="' + esc(t('Given')) + '" colour="#6b7a93">';
       xml += '<block type="tt_given"></block>';
       xml += '</category>';
     }
     for (const g of GROUPS) {
       const types = g.types.filter((t) => pal.has(t));
       if (!types.length) continue;
-      xml += '<category name="' + g.name + '" colour="' + g.colour + '">';
+      xml += '<category name="' + esc(t(g.name)) + '" colour="' + g.colour + '">';
       for (const t of types) {
         xml += '<block type="' + t + '">';
         if (t === 'tt_lemma') xml += '<field name="NAME">add</field>';
@@ -265,9 +320,9 @@
     try { workspace.scroll(0, 0); } catch (e) { /* ignore */ }
     answerBlock = ensureAnswer();
     renderPanel();
-    setStatus(state.level.inferTerm
-      ? 'Drag the inferred type into the hole after the term, then press Check.'
-      : 'Drag blocks from the left onto the canvas and put the term into the answer slot; other blocks can be scratch.', 'idle');
+    setStatus(() => state.level.inferTerm
+      ? t('inferIdle')
+      : t('idle'), 'idle');
     $('#levelSelect').value = String(state.index);
     saveProgress();
     state.loading = false;
@@ -365,7 +420,7 @@
     const list = workspace.getBlocksByType('tt_answer', false);
     if (list.length > 1) {
       for (let i = 1; i < list.length; i++) {
-        list[i].setWarningText('Duplicate answer slot: only the first one is checked');
+        list[i].setWarningText(t('duplicate'));
         list[i].setColour('#5b6475');
       }
     }
@@ -388,7 +443,7 @@
 
   function answerTerm() {
     const ans = ensureAnswer();
-    if (!ans) return { error: 'Cannot find the "answer" block on the canvas: press Reset to restore it.' };
+    if (!ans) return { error: t('missing') };
     return { answer: ans, term: ans.getInputTargetBlock('TERM') };
   }
 
@@ -408,16 +463,16 @@
     refreshVars();
     const slot = answerTerm();
     if (slot.error) {
-      setStatus(slot.error, 'warn');
+      setStatus(() => esc(t('missing')), 'warn');
       return;
     }
     if (!slot.term) {
       const tops = workspace.getTopBlocks(false).filter((b) => !!b.outputConnection);
-      setStatus(state.level.inferTerm
-        ? 'The type slot is still empty: drag a type into the hole after the term.'
+      setStatus(() => state.level.inferTerm
+        ? t('emptyType')
         : (tops.length
-          ? 'The "answer" slot is still empty: drag the term from the canvas into the "answer ⊢" block.'
-          : 'The "answer" slot is still empty: drag an expression in from the left.'), 'warn');
+          ? t('emptyCanvas')
+          : t('empty')), 'warn');
       return;
     }
     const term = slot.term;
@@ -426,7 +481,7 @@
       // Start from the answer block itself so its local variables are in scope.
       r = MLTT.checkBlocks(state.level, toJson(slot.answer));
     } catch (e) {
-      setStatus('Internal error: ' + esc(e.message), 'err');
+      setStatus(() => esc(t('internal', { message: window.I18N.error(e) })), 'err');
       return;
     }
     if (r.ok) {
@@ -438,18 +493,18 @@
       state.stars[lv.id] = Math.max(state.stars[lv.id] || 0, stars);
       saveProgress();
       renderStars();
-      setStatus('✓ Correct type.<span class="meta">' + n + ' blocks · target ' + lv.par + ' blocks · ' +
-        (state.hintUsed ? 'used ' + state.hintUsed + ' hints' : 'no hints') + '</span>', 'ok');
+      setStatus(() => esc(t('correct')) + '<span class="meta">' + esc(t('counts', { count: n, par: lv.par })) +
+        esc(state.hintUsed ? t('hintsUsed', { count: state.hintUsed }) : t('noHints')) + '</span>', 'ok');
       if (showOverlay) showWin(stars, n);
       return;
     }
     if (r.holes) {
-      setStatus('There are <b>' + r.holes.length + '</b> holes left to fill.', 'warn');
+      setStatus(() => esc(t('holes', { count: r.holes.length })), 'warn');
       return;
     }
     const e = r.error || {};
-    const where = e.src ? '<span class="meta">(highlighted the failing block)</span>' : '';
-    setStatus('<b>' + esc(e.code || 'E_ERROR') + '</b> ' + esc(e.message || 'check failed') + where, 'err');
+    setStatus(() => '<b>' + esc(e.code || 'E_ERROR') + '</b> ' + esc(window.I18N.error(e) || t('failed')) +
+      (e.src ? '<span class="meta">' + esc(t('highlighted')) + '</span>' : ''), 'err');
     if (e.src && workspace) {
       try { workspace.highlightBlock(e.src); } catch (err) { /* ignore */ }
     }
@@ -459,18 +514,19 @@
   function showWin(stars, n) {
     const lv = state.level;
     $('#winStars').textContent = '★'.repeat(stars) + '☆'.repeat(3 - stars);
-    $('#winText').innerHTML = '"' + esc(lv.title) + '" passed · ' + n + ' blocks<br><span class="mono">' +
+    $('#winText').innerHTML = esc(t('passed', { title: lv.title, count: n })) + '<br><span class="mono">' +
       esc(lv.solutionText) + '</span>';
     $('#overlay').classList.add('show');
-    $('#nextBtn').textContent = state.index + 1 < LEVELS.length ? 'Next level →' : 'Back to level 1';
+    $('#nextBtn').textContent = state.index + 1 < LEVELS.length ? t('nextAction') : t('back');
   }
 
   // ---------- Initialization ----------
   function init() {
     if (typeof Blockly === 'undefined') {
-      $('#blocklyDiv').innerHTML = '<div class="fatal">Blockly failed to load. Please reload the page.</div>';
+      $('#blocklyDiv').textContent = t('fatal');
       return;
     }
+    renderLanguage();
     loadProgress();
     state.level = LEVELS[state.index];
 
@@ -506,6 +562,8 @@
       if (nav) nav.style.display = 'none';
     }
 
+    $('#languageSelect').addEventListener('change', (e) => switchLanguage(e.target.value));
+
     $('#checkBtn').addEventListener('click', () => doCheck(true));
     $('#hintBtn').addEventListener('click', () => {
       const lv = state.level;
@@ -516,7 +574,7 @@
       }
     });
     $('#resetBtn').addEventListener('click', () => {
-      if (confirm('Clear all blocks in this level?')) loadLevel(state.index);
+      if (confirm(t('clear'))) loadLevel(state.index);
     });
     $('#prevBtn').addEventListener('click', () => loadLevel(state.index - 1));
     $('#nextBtn2').addEventListener('click', () => loadLevel(state.index + 1));
@@ -540,7 +598,7 @@
       if (term && !$('#status').classList.contains('ok')) {
         // Recheck silently only when complete, to avoid noise while building.
         const r = MLTT.checkBlocks(state.level, toJson(slot.answer));
-        if (r.ok) setStatus('✓ Looks right. Press Check to confirm.', 'ok');
+        if (r.ok) setStatus(() => t('looksRight'), 'ok');
       }
     }, 160);
 
@@ -583,5 +641,6 @@
     check: () => doCheck(false),
     get state() { return state; },
     get workspace() { return workspace; },
+    switchLanguage,
   };
 })();

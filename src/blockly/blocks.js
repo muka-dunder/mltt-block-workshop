@@ -5,6 +5,7 @@
   'use strict';
   const B = global.Blockly;
   if (!B) return;
+  const t = global.I18N.t;
 
   // ---------- Helpers ----------
   const pick = (v, d) => (v === undefined || v === null || v === '') ? d : v;
@@ -97,12 +98,12 @@
     static menuFor(field) {
       const src = field.getSourceBlock();
       const list = src ? bindersInScope(src) : [];
-      if (!list.length) return [['∅ no variables', encodeRef('', '')]];
+      if (!list.length) return [[t('block.noVariables'), encodeRef('', '')]];
       const seen = new Map();
       return list.map((b) => {
         const n = (seen.get(b.name) || 0) + 1;
         seen.set(b.name, n);
-        return [n > 1 ? b.name + ' · level ' + n : b.name, encodeRef(b.uid, b.name)];
+        return [n > 1 ? b.name + ' · ' + t('block.level') + ' ' + n : b.name, encodeRef(b.uid, b.name)];
       });
     }
     // Keep stale references in the field and let the validator flag them instead of silently rebinding.
@@ -190,7 +191,7 @@
       this.appendDummyInput().appendField(new FieldBinderRef(''), 'REF');
       this.setOutput(true, null);
       this.setColour('#d7ccc8');
-      this.setTooltip('Local variable. The dropdown only lists binders that are actually in scope.');
+      this.setTooltip(() => t('block.varTooltip'));
       this.ttIsVar = true;
     }
   };
@@ -207,7 +208,7 @@
       this.setInputsInline(true);
       this.setOutput(true, null);
       this.setColour('#d7ccc8');
-      this.setTooltip('Function. The name is visible only in the body (after the .).');
+      this.setTooltip(() => t('block.lamTooltip'));
     }
   };
 
@@ -223,7 +224,7 @@
       this.appendValueInput('BODY').appendField('→');
       this.setInputsInline(false);
       this.setOutput(true, null);
-      this.setTooltip('Dependent function type. x is visible only after →, not in the domain.');
+      this.setTooltip(() => t('block.piTooltip'));
     }
   };
 
@@ -239,7 +240,7 @@
       this.appendValueInput('BODY').appendField('×');
       this.setInputsInline(false);
       this.setOutput(true, null);
-      this.setTooltip('Dependent pair type.');
+      this.setTooltip(() => t('block.sigmaTooltip'));
     }
   };
 
@@ -256,7 +257,7 @@
       this.appendValueInput('BODY');
       this.setInputsInline(false);
       this.setOutput(true, null);
-      this.setTooltip('Local definition.');
+      this.setTooltip(() => t('block.letTooltip'));
     }
   };
 
@@ -267,14 +268,14 @@
       this.appendDummyInput().appendField('natrec').appendField('n =');
       this.appendValueInput('N');
       this.appendDummyInput()
-        .appendField('motive λ')
+        .appendField(t('block.motiveLambda'))
         .appendField(nameField('_'), 'MNAME')
         .appendField('▸');
       this.appendValueInput('MOT_BODY');
-      this.appendDummyInput().appendField('base');
+      this.appendDummyInput().appendField(t('block.base'));
       this.appendValueInput('Z');
       this.appendDummyInput()
-        .appendField('step λ')
+        .appendField(t('block.stepLambda'))
         .appendField(nameField('k'), 'KNAME')
         .appendField('λ')
         .appendField(nameField('ih'), 'IHNAME')
@@ -282,7 +283,7 @@
       this.appendValueInput('STEP_BODY');
       this.setInputsInline(false);
       this.setOutput(true, null);
-      this.setTooltip('ℕ eliminator: motive binds one variable, step binds k and ih.');
+      this.setTooltip(() => t('block.natrecTooltip'));
     }
   };
 
@@ -290,24 +291,24 @@
   B.Blocks['tt_J'] = {
     init() {
       declareBinder(this, { MOT_BODY: ['y', 'q'] });
-      this.appendDummyInput().appendField('J base').appendField('a =');
+      this.appendDummyInput().appendField(t('block.jBase')).appendField('a =');
       this.appendValueInput('BASE');
       this.appendDummyInput()
-        .appendField('motive λ')
+        .appendField(t('block.motiveLambda'))
         .appendField(nameField('y'), 'YNAME')
         .appendField('λ')
         .appendField(nameField('q'), 'QNAME')
         .appendField('▸');
       this.appendValueInput('MOT_BODY');
-      this.appendDummyInput().appendField('base d =');
+      this.appendDummyInput().appendField(t('block.baseD'));
       this.appendValueInput('D');
-      this.appendDummyInput().appendField('at b =');
+      this.appendDummyInput().appendField(t('block.atB'));
       this.appendValueInput('B');
-      this.appendDummyInput().appendField('along p =');
+      this.appendDummyInput().appendField(t('block.alongP'));
       this.appendValueInput('P');
       this.setInputsInline(false);
       this.setOutput(true, null);
-      this.setTooltip('Equality eliminator (Paulin–Mohring): in the motive, y is the endpoint and q is the equality to y.');
+      this.setTooltip(() => t('block.jTooltip'));
     }
   };
 
@@ -318,12 +319,12 @@
       this.appendDummyInput().appendField('sigma_ind').appendField('p =');
       this.appendValueInput('P');
       this.appendDummyInput()
-        .appendField('motive λ')
+        .appendField(t('block.motiveLambda'))
         .appendField(nameField('_'), 'PNAME')
         .appendField('▸');
       this.appendValueInput('MOT_BODY');
       this.appendDummyInput()
-        .appendField('step λ')
+        .appendField(t('block.stepLambda'))
         .appendField(nameField('a'), 'ANAME')
         .appendField('λ')
         .appendField(nameField('b'), 'BNAME')
@@ -331,7 +332,7 @@
       this.appendValueInput('STEP_BODY');
       this.setInputsInline(false);
       this.setOutput(true, null);
-      this.setTooltip('Sigma eliminator: from p : Sigma, a motive, and a step for pairs, get the motive at p.');
+      this.setTooltip(() => t('block.sigmaIndTooltip'));
     }
   };
 
@@ -343,10 +344,10 @@
         ? givens.map((g, i) => [g.label, String(i)])
         : [['∅', '0']];
       const f = new B.FieldDropdown(opts);
-      this.appendDummyInput().appendField('Given').appendField(f, 'IDX');
+      this.appendDummyInput().appendField(t('block.given')).appendField(f, 'IDX');
       this.setOutput(true, null);
       this.setColour('#d7ccc8');
-      this.setTooltip('A variable from the level context (A, x, p, ...).');
+      this.setTooltip(() => t('block.givenTooltip'));
     }
   };
 
@@ -372,7 +373,7 @@
         this.ttNameFields = {};
         binders.forEach((b, i) => {
           const f = FieldLocalVar ? new FieldLocalVar(b.name || ('v' + i)) : nameField(b.name || ('v' + i));
-          f.setTooltip('Hover: show a variable block; click: rename');
+          f.setTooltip(() => t('block.binderTooltip'));
           if (uids[i]) this.ttNameFields[uids[i]] = 'BNAME' + i;
           const row = this.appendEndRowInput();
           row.appendField(f, 'BNAME' + i);
@@ -397,9 +398,9 @@
       this.setInputsInline(true);
       this.setDeletable(false);
       this.setMovable(true);
-      this.setTooltip(infer
-        ? 'Drag the inferred type into the hole after the term, then press Check.'
-        : 'Drag the final answer here, then press Check. Other blocks on the canvas are not checked and can be used as scratch.');
+      this.setTooltip(() => infer
+        ? t('block.answerInferTooltip')
+        : t('block.answerTooltip'));
       this.ttIsAnswer = true;
     }
   };
@@ -407,18 +408,18 @@
   /* The answer block inline input stays a "hole": the background is not covered, so the answer nests in it. */
 
   // Simple blocks (JSON)
-  B.common.defineBlocksWithJsonArray([
+  const simpleBlocks = [
     {
       type: 'tt_app', message0: '%1 %2',
       args0: [{ type: 'input_value', name: 'F' }, { type: 'input_value', name: 'A' }],
       inputsInline: true, output: null, colour: '#d7ccc8',
-      tooltip: 'Apply a function to an argument.'
+      tooltipKey: 'appTooltip'
     },
     {
       type: 'tt_pair', message0: '⟨ %1 , %2 ⟩',
       args0: [{ type: 'input_value', name: 'A' }, { type: 'input_value', name: 'B' }],
       inputsInline: true, output: null, colour: '#d7ccc8',
-      tooltip: 'Construct a pair.'
+      tooltipKey: 'pairTooltip'
     },
     {
       type: 'tt_fst', message0: 'fst %1',
@@ -438,18 +439,18 @@
         { type: 'input_value', name: 'R' }
       ],
       inputsInline: true, output: null, colour: '#d7ccc8',
-      tooltip: 'Equality type: two points of A.'
+      tooltipKey: 'idTooltip'
     },
     {
       type: 'tt_annot', message0: '( %1 : %2 )',
       args0: [{ type: 'input_value', name: 'TERM' }, { type: 'input_value', name: 'TYPE' }],
       inputsInline: true, output: null, colour: '#d7ccc8',
-      tooltip: 'Type annotation: write the judgment into the term.'
+      tooltipKey: 'annotTooltip'
     },
     {
       type: 'tt_refl', message0: 'refl',
       output: null, colour: '#d7ccc8',
-      tooltip: 'Proof of definitional equality.'
+      tooltipKey: 'reflTooltip'
     },
     {
       type: 'tt_zero', message0: '0', output: null, colour: '#d7ccc8'
@@ -493,10 +494,10 @@
         { type: 'input_value', name: 'BASE' }
       ],
       inputsInline: true, output: null, colour: '#d7ccc8',
-      tooltip: '1-eliminator: from u : 1, a type family C, and c : C ★, get C u.'
+      tooltipKey: 'unitrecTooltip'
     },
     {
-      type: 'tt_if', message0: 'if %1 then %2 else %3',
+      type: 'tt_if', message0: 'if %1 then %2 else %3', messageKey: 'ifMessage',
       args0: [
         { type: 'input_value', name: 'B' },
         { type: 'input_value', name: 'X' },
@@ -506,7 +507,7 @@
     },
     {
       type: 'tt_hole', message0: '?', output: null, colour: '#d7ccc8',
-      tooltip: 'Hole: the expected type is recorded when checking.'
+      tooltipKey: 'holeTooltip'
     },
     {
       type: 'tt_U', message0: 'Type %1',
@@ -517,12 +518,21 @@
       output: null, colour: '#d7ccc8'
     },
     {
-      type: 'tt_lemma', message0: 'lemma %1',
+      type: 'tt_lemma', message0: 'lemma %1', messageKey: 'lemmaMessage',
       args0: [{ type: 'field_input', name: 'NAME', text: 'add' }],
       output: null, colour: '#d7ccc8',
-      tooltip: 'A proven transparent definition.'
+      tooltipKey: 'lemmaTooltip'
     }
-  ]);
+  ];
+  for (const definition of simpleBlocks) {
+    const { tooltipKey, messageKey, ...json } = definition;
+    B.Blocks[json.type] = {
+      init() {
+        this.jsonInit(messageKey ? { ...json, message0: t('block.' + messageKey) } : json);
+        if (tooltipKey) this.setTooltip(() => t('block.' + tooltipKey));
+      }
+    };
+  }
 
   // Global exports
   global.LBM = {

@@ -25,12 +25,31 @@ is served from the installed package in development and copied into `dist/media/
 at build time. The output loads its assets locally and needs no CDN. `node_modules/`
 and `dist/` are generated and stay out of Git.
 
+Use the header language selector to switch between English and Simplified Chinese.
+The initial language follows the browser; later visits use your saved choice.
+Switching preserves the current blocks (including scratch blocks, variable names,
+bindings and positions), zoom, level, revealed hints and stars without reloading.
+Level text, block help, Blockly menus and checker errors are localized; mathematical
+notation and variable names stay unchanged. All 23 levels have Chinese text,
+including the levels not currently exposed in the UI.
+
+Translations use the small `src/i18n/index.js` service and dictionaries under
+`src/i18n/locales/`. The checker keeps its English
+`message` for compatibility and provides `messageKey` / `messageParams` for display.
+
 Command-line demo / regression:
 
 ```bash
 npm run demo       # print all 23 levels and reference solutions
 npm test           # 58 checker + scope tests
+npm run test:ui     # starts its own development server and browser regression
 ```
+
+Run `npx playwright install chromium` once before the browser regression, or
+set `PLAYWRIGHT_CHANNEL=chrome` (or `msedge`) to run the browser regression with
+an installed browser instead of Playwright's bundled Chromium. Set
+`MLTT_TEST_BUILD=1` to run the same browser checks against `dist/` after building.
+The browser regression uses local ports 18743 (development) and 18744 (preview).
 
 ## Layout
 
@@ -44,6 +63,8 @@ src/
   blockly/blocks.js  Blockly definitions and lexical binding
   ui/app.js       workspace, checking, hints and progress
   ui/style.css    application styles
+  i18n/index.js   language selection and message formatting
+  i18n/locales/   block, level and checker translations
 tools/
   cli/demo.js     command-line level demonstration
   browser/        Playwright checks and screenshot utilities
@@ -139,6 +160,10 @@ Stars: <= reference block count with no hints = 3 stars; <= reference + 2 with <
 ## Tests
 
 `node test/test.js`: 23 level reference solutions, 9 error paths, 13 scope/elaboration cases (including answer slots and required-block checks), 7 NbE cases, 4 triple-negation cases for L22, and 2 printing cases - 58 items total.
+
+`npm run test:ui` verifies language switching, unfinished/completed workspace
+preservation, variable binding and hover flydowns, progress persistence and
+Blockly media requests. It starts and closes its own Vite server.
 
 ## Known limitations
 

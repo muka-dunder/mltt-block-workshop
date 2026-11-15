@@ -1,5 +1,6 @@
 import * as Blockly from 'blockly/core';
 import * as en from 'blockly/msg/en';
+import * as zhCN from 'blockly/msg/zh-hans';
 import { LexicalVariablesPlugin } from '@mit-app-inventor/blockly-block-lexical-variables/core';
 import './ui/style.css';
 
@@ -7,10 +8,14 @@ import './ui/style.css';
 // browser globals in dependency order while keeping those Node entry points.
 window.Blockly = Blockly;
 window.LexicalVariablesPlugin = LexicalVariablesPlugin;
-Object.assign(Blockly.Msg, en);
+window.BLOCKLY_MESSAGES = { en, 'zh-CN': zhCN };
 window.BLOCKLY_MEDIA = `${import.meta.env.BASE_URL}media/`;
 
 async function start() {
+  await import('./i18n/locales/blocks.js');
+  await import('./i18n/locales/levels.zh-CN.js');
+  await import('./i18n/locales/errors.js');
+  await import('./i18n/index.js');
   await import('./core/mltt.js');
   await import('./levels/index.js');
   await import('./blockly/blocks.js');
@@ -19,5 +24,5 @@ async function start() {
 
 start().catch((error) => {
   console.error(error);
-  document.querySelector('#status').textContent = 'Failed to load the application.';
+  document.querySelector('#status').textContent = '应用加载失败 / Failed to load the application.';
 });

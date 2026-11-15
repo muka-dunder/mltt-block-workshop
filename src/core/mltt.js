@@ -58,17 +58,17 @@
   function applyV(f, a) {
     if (f.t === 'Lam') return f.body(a);
     if (f.t === 'Ne') return vNe(f.head, f.spine.concat([{ k: 'app', v: a }]));
-    throw new CheckError('E_INTERNAL', 'Attempted to apply a non-function');
+    throw new CheckError('E_INTERNAL', 'Attempted to apply a non-function', null, null, 'internalApply');
   }
   function fstV(p) {
     if (p.t === 'Pair') return p.a;
     if (p.t === 'Ne') return vNe(p.head, p.spine.concat([{ k: 'fst' }]));
-    throw new CheckError('E_INTERNAL', 'fst applied to a non-pair');
+    throw new CheckError('E_INTERNAL', 'fst applied to a non-pair', null, null, 'internalFst');
   }
   function sndV(p) {
     if (p.t === 'Pair') return p.b;
     if (p.t === 'Ne') return vNe(p.head, p.spine.concat([{ k: 'snd' }]));
-    throw new CheckError('E_INTERNAL', 'snd applied to a non-pair');
+    throw new CheckError('E_INTERNAL', 'snd applied to a non-pair', null, null, 'internalSnd');
   }
 
   // ---------------- Evaluation ----------------
@@ -82,7 +82,7 @@
       case 'const': return vNe({ h: 'const', name: tm.name }, []);
       case 'ref': {
         const d = DEFS.get(tm.name);
-        if (!d) throw new CheckError('E_INTERNAL', 'Undefined lemma ' + tm.name);
+        if (!d) throw new CheckError('E_INTERNAL', 'Undefined lemma ' + tm.name, null, null, 'undefinedLemma', { name: tm.name });
         return evalTm([], d.body);
       }
       case 'U': return vU(tm.l);
@@ -146,8 +146,8 @@
         return vNe(p.head, p.spine.concat([{ k: 'sigind', mot, step }]));
       }
       case 'annot': return evalTm(env, tm.term);
-      case 'hole': throw new CheckError('E_HOLE', 'Hole has no content yet', tm);
-      default: throw new CheckError('E_INTERNAL', 'Unknown term ' + tm.t);
+      case 'hole': throw new CheckError('E_HOLE', 'Hole has no content yet', tm, null, 'holeEmpty');
+      default: throw new CheckError('E_INTERNAL', 'Unknown term ' + tm.t, null, null, 'unknownTerm', { term: tm.t });
     }
   }
 
@@ -186,7 +186,7 @@
         for (const sp of v.spine) tm = quoteSpine(lvl, tm, sp);
         return tm;
       }
-      default: throw new CheckError('E_INTERNAL', 'Unknown value ' + v.t);
+      default: throw new CheckError('E_INTERNAL', 'Unknown value ' + v.t, null, null, 'unknownValue', { value: v.t });
     }
   }
   function quoteSpine(lvl, tm, sp) {
@@ -200,7 +200,7 @@
       case 'unitrec': return UnitRec(tm, quote(lvl, sp.mot), quote(lvl, sp.base));
       case 'sigind': return SigmaInd(tm, quote(lvl, sp.mot), quote(lvl, sp.step));
       case 'J': return J(quote(lvl, sp.a), quote(lvl, sp.mot), quote(lvl, sp.d), quote(lvl, sp.b), tm);
-      default: throw new CheckError('E_INTERNAL', 'Unknown spine ' + sp.k);
+      default: throw new CheckError('E_INTERNAL', 'Unknown spine ' + sp.k, null, null, 'unknownSpine', { spine: sp.k });
     }
   }
 
@@ -258,28 +258,32 @@
 
   // ---------------- Errors ----------------
   class CheckError extends Error {
-    constructor(code, message, tm, extra) {
+    constructor(code, message, tm, extra, messageKey, messageParams) {
       super(message);
       this.name = 'CheckError';
       this.code = code;
       this.src = (tm && tm.src) || (extra && extra.src) || null;
       this.extra = extra || {};
+      this.messageKey = messageKey || null;
+      this.messageParams = messageParams || {};
     }
   }
 
-  function fail(code, message, tm, extra) { throw new CheckError(code, message, tm, extra); }
+  function fail(code, message, tm, extra, messageKey, messageParams) {
+    throw new CheckError(code, message, tm, extra, messageKey, messageParams);
+  }
 
   // ---------------- Type checking ----------------
   function infer(ctx, tm) {
     switch (tm.t) {
       case 'var': {
         const k = ctx.length - 1 - tm.i;
-        if (k < 0 || k >= ctx.length) fail('E_FREE', 'Free variable out of bounds (scope resolution error)', tm);
+        if (k < 0 || k >= ctx.length) fail('E_FREE', 'Free variable out of bounds (scope resolution error)', tm, null, 'freeVariable');
         return ctx[k].ty;
       }
       case 'ref': {
         const d = DEFS.get(tm.name);
-        if (!d) fail('E_INTERNAL', 'Undefined lemma ' + tm.name, tm);
+        if (!d) fail('E_INTERNAL', 'Undefined lemma ' + tm.name, tm, null, 'undefinedLemma', { name: tm.name });
         return evalTm([], d.ty);
       }
       case 'const': return evalTm([], tm.ty || vNe({ h: 'const', name: tm.name }));
@@ -311,18 +315,18 @@
       }
       case 'app': {
         const tf = infer(ctx, tm.f);
-        if (tf.t !== 'Pi') fail('E_NOT_FUN', 'Not a function, cannot apply: ' + showVal(ctx, tf), tm);
+        if (tf.t !== 'Pi') fail('E_NOT_FUN', 'Not a function, cannot apply: ' + showVal(ctx, tf), tm, null, 'notFunction', { type: showVal(ctx, tf) });
         check(ctx, tm.a, tf.dom, []);
         return tf.cod(evalTm(envOf(ctx), tm.a));
       }
       case 'fst': {
         const tp = infer(ctx, tm.p);
-        if (tp.t !== 'Sigma') fail('E_NOT_PAIR', 'fst needs a pair, but got: ' + showVal(ctx, tp), tm);
+        if (tp.t !== 'Sigma') fail('E_NOT_PAIR', 'fst needs a pair, but got: ' + showVal(ctx, tp), tm, null, 'fstNotPair', { type: showVal(ctx, tp) });
         return tp.dom;
       }
       case 'snd': {
         const tp = infer(ctx, tm.p);
-        if (tp.t !== 'Sigma') fail('E_NOT_PAIR', 'snd needs a pair, but got: ' + showVal(ctx, tp), tm);
+        if (tp.t !== 'Sigma') fail('E_NOT_PAIR', 'snd needs a pair, but got: ' + showVal(ctx, tp), tm, null, 'sndNotPair', { type: showVal(ctx, tp) });
         return tp.cod(fstV(evalTm(envOf(ctx), tm.p)));
       }
       case 'nat': return vU(0);
@@ -334,15 +338,15 @@
       case 'true': return vBool;
       case 'false': return vBool;
       case 'star': return vUnit;
-      case 'refl': fail('E_NEED_TYPE', 'refl needs to know which equality it proves (put it in a goal or add an annotation)', tm);
-      case 'lam': fail('E_NEED_TYPE', 'λ needs an expected type to be checked (put it in a typed position)', tm);
+      case 'refl': fail('E_NEED_TYPE', 'refl needs to know which equality it proves (put it in a goal or add an annotation)', tm, null, 'reflNeedsType');
+      case 'lam': fail('E_NEED_TYPE', 'λ needs an expected type to be checked (put it in a typed position)', tm, null, 'lambdaNeedsType');
       case 'pair': {
         const ta = infer(ctx, tm.a), tb = infer(ctx, tm.b);
         return vSigma('_', ta, () => tb);
       }
-      case 'if': fail('E_NEED_TYPE', 'if needs an expected type to check both branches', tm);
-      case 'absurd': fail('E_NEED_TYPE', 'absurd needs an expected type', tm);
-      case 'hole': fail('E_HOLE', 'Hole needs an expected type', tm);
+      case 'if': fail('E_NEED_TYPE', 'if needs an expected type to check both branches', tm, null, 'ifNeedsType');
+      case 'absurd': fail('E_NEED_TYPE', 'absurd needs an expected type', tm, null, 'absurdNeedsType');
+      case 'hole': fail('E_HOLE', 'Hole needs an expected type', tm, null, 'holeNeedsType');
       case 'natrec': {
         check(ctx, tm.n, vNat, []);
         check(ctx, tm.mot, vPi('_', vNat, () => vU(0)), []);
@@ -374,7 +378,7 @@
       }
       case 'sigind': {
         const tp = infer(ctx, tm.p);
-        if (tp.t !== 'Sigma') fail('E_NOT_PAIR', 'sigma_ind needs a Sigma value, but got: ' + showVal(ctx, tp), tm);
+        if (tp.t !== 'Sigma') fail('E_NOT_PAIR', 'sigma_ind needs a Sigma value, but got: ' + showVal(ctx, tp), tm, null, 'sigmaIndNotPair', { type: showVal(ctx, tp) });
         const pV = evalTm(envOf(ctx), tm.p);
         check(ctx, tm.mot, vPi('p', tp, () => vU(0)), []);
         const motV = evalTm(envOf(ctx), tm.mot);
@@ -383,13 +387,13 @@
         check(ctx, tm.step, stepTy, []);
         return applyV(motV, pV);
       }
-      default: fail('E_INTERNAL', 'Unknown term ' + tm.t, tm);
+      default: fail('E_INTERNAL', 'Unknown term ' + tm.t, tm, null, 'unknownTerm', { term: tm.t });
     }
   }
 
   function sortOf(ctx, tm) {
     const t = infer(ctx, tm);
-    if (t.t !== 'U') fail('E_SORT', 'Cannot tell whether this is a type: ' + showVal(ctx, t), tm);
+    if (t.t !== 'U') fail('E_SORT', 'Cannot tell whether this is a type: ' + showVal(ctx, t), tm, null, 'notType', { type: showVal(ctx, t) });
     return t.l;
   }
 
@@ -399,14 +403,14 @@
       case 'lam': {
         if (ty.t !== 'Pi') {
           fail('E_MISMATCH', 'λ needs a function type, but the goal is: ' + showVal(ctx, ty), tm,
-            { expected: showVal(ctx, ty), actual: 'λ' });
+            { expected: showVal(ctx, ty), actual: 'λ' }, 'lambdaGoal', { type: showVal(ctx, ty) });
         }
         const x = vNe({ h: 'var', lvl: ctx.length }, []);
         if (tm.ty) {
           sortOf(ctx, tm.ty);
           const aV = evalTm(envOf(ctx), tm.ty);
           if (!conv(aV, ty.dom)) {
-            fail('E_MISMATCH', 'λ parameter type is ' + showVal(ctx, aV) + ', but ' + showVal(ctx, ty.dom) + ' is required', tm);
+            fail('E_MISMATCH', 'λ parameter type is ' + showVal(ctx, aV) + ', but ' + showVal(ctx, ty.dom) + ' is required', tm, null, 'lambdaParameter', { actual: showVal(ctx, aV), expected: showVal(ctx, ty.dom) });
           }
         }
         check(ctx.concat([{ name: tm.name, ty: ty.dom }]), tm.body, ty.cod(x), goals);
@@ -414,7 +418,7 @@
       }
       case 'pair': {
         if (ty.t !== 'Sigma') {
-          fail('E_MISMATCH', 'A pair needs a Σ type, but the goal is: ' + showVal(ctx, ty), tm);
+          fail('E_MISMATCH', 'A pair needs a Σ type, but the goal is: ' + showVal(ctx, ty), tm, null, 'pairGoal', { type: showVal(ctx, ty) });
         }
         check(ctx, tm.a, ty.dom, goals);
         check(ctx, tm.b, ty.cod(evalTm(envOf(ctx), tm.a)), goals);
@@ -422,11 +426,11 @@
       }
       case 'refl': {
         if (ty.t !== 'Id') {
-          fail('E_MISMATCH', 'refl can only prove an equality, but the goal is: ' + showVal(ctx, ty), tm);
+          fail('E_MISMATCH', 'refl can only prove an equality, but the goal is: ' + showVal(ctx, ty), tm, null, 'reflGoal', { type: showVal(ctx, ty) });
         }
         if (!conv(ty.l, ty.r)) {
           fail('E_REFL', 'refl can only prove definitional equality; the left side is ' + showVal(ctx, ty.l) +
-            ' and the right side is ' + showVal(ctx, ty.r), tm);
+            ' and the right side is ' + showVal(ctx, ty.r), tm, null, 'reflSides', { left: showVal(ctx, ty.l), right: showVal(ctx, ty.r) });
         }
         return;
       }
@@ -449,7 +453,7 @@
         const aV = evalTm(envOf(ctx), tm.ty);
         check(ctx, tm.term, aV, goals);
         if (!conv(aV, ty)) {
-          fail('E_MISMATCH', 'Annotation type is ' + showVal(ctx, aV) + ', but ' + showVal(ctx, ty) + ' is required', tm);
+          fail('E_MISMATCH', 'Annotation type is ' + showVal(ctx, aV) + ', but ' + showVal(ctx, ty) + ' is required', tm, null, 'annotationType', { actual: showVal(ctx, aV), expected: showVal(ctx, ty) });
         }
         return;
       }
@@ -457,7 +461,7 @@
         const s = infer(ctx, tm);
         if (!conv(s, ty)) {
           fail('E_MISMATCH', 'Expected ' + showVal(ctx, ty) + ' here, but got ' + showVal(ctx, s), tm,
-            { expected: showVal(ctx, ty), actual: showVal(ctx, s) });
+            { expected: showVal(ctx, ty), actual: showVal(ctx, s) }, 'typeMismatch', { expected: showVal(ctx, ty), actual: showVal(ctx, s) });
         }
       }
     }
@@ -606,7 +610,7 @@
       const want = infer(ctx, level.inferTerm);
       if (!conv(got, want)) {
         fail('E_MISMATCH', 'Inferred type is ' + showVal(ctx, want) + ', but you gave ' + showVal(ctx, got), tm,
-          { expected: showVal(ctx, want), actual: showVal(ctx, got) });
+          { expected: showVal(ctx, want), actual: showVal(ctx, got) }, 'inferredMismatch', { expected: showVal(ctx, want), actual: showVal(ctx, got) });
       }
       return { ok: true, ctx, inferred: want };
     } catch (e) {
@@ -647,12 +651,12 @@
   function elabBlock(j, scope, opts) {
     scope = scope || [];
     opts = opts || {};
-    if (!j) fail('E_EMPTY', 'No block here yet');
+    if (!j) fail('E_EMPTY', 'No block here yet', null, null, 'noBlock');
     const src = j.id;
     const inp = (n) => j.inputs && j.inputs[n] ? j.inputs[n] : null;
     const el = (n, sc) => {
       const c = inp(n);
-      if (!c) fail('E_EMPTY', 'A slot is still empty', { src });
+      if (!c) fail('E_EMPTY', 'A slot is still empty', { src }, null, 'emptySlot');
       return elabBlock(c, sc || scope, opts);
     };
     const binds = j.binds || {};
@@ -668,14 +672,14 @@
         let pos = -1;
         for (let i = scope.length - 1; i >= 0; i--) if (scope[i].uid === ref) { pos = i; break; }
         if (pos < 0) for (let i = scope.length - 1; i >= 0; i--) if (scope[i].name === nm) { pos = i; break; }
-        if (pos < 0) fail('E_SCOPE', 'Variable "' + (nm || '?') + '" is not in scope', { src });
+        if (pos < 0) fail('E_SCOPE', 'Variable "' + (nm || '?') + '" is not in scope', { src }, null, 'variableScope', { name: nm || '?' });
         return Var(scope.length - 1 - pos, src);
       }
       case 'tt_U': return U(parseInt((j.fields && j.fields.LEVEL) || '0', 10), src);
       case 'tt_given': {
         const idx = parseInt((j.fields && j.fields.IDX) || '-1', 10);
         const n = opts.nGivens || 0;
-        if (!(idx >= 0 && idx < n)) fail('E_SCOPE', 'This given is not in the current level context', { src });
+        if (!(idx >= 0 && idx < n)) fail('E_SCOPE', 'This given is not in the current level context', { src }, null, 'givenScope');
         return Var(scope.length + (n - 1 - idx), src);
       }
       case 'tt_nat': return Object.assign({}, NAT, { src });
@@ -692,7 +696,7 @@
       case 'tt_answer':
       case 'tt_goal': {
         // The answer slot declares its own local variable (LBM); TERM is in its scope.
-        if (!inp('TERM')) fail('E_EMPTY', 'The "answer" slot is still empty', { src });
+        if (!inp('TERM')) fail('E_EMPTY', 'The "answer" slot is still empty', { src }, null, 'emptyAnswer');
         let sc = scope;
         if (opts.answerBinder) {
           for (const uid of (binds.TERM || [])) sc = sc.concat([{ uid, name: nameOf(uid) }]);
@@ -760,7 +764,7 @@
         const mot = Lam(nameOf(yUid), Lam(nameOf(qUid), el('MOT_BODY', motScope), null, src), null, src);
         return J(el('BASE'), mot, el('D'), el('B'), el('P'), src);
       }
-      default: fail('E_INTERNAL', 'Unknown block type ' + j.type, { src });
+      default: fail('E_INTERNAL', 'Unknown block type ' + j.type, { src }, null, 'unknownBlock', { type: j.type });
     }
   }
 
@@ -789,7 +793,8 @@
     if (r.ok && level.requireBlock && !hasBlockType(blockJson, level.requireBlock)) {
       r.ok = false;
       r.error = new CheckError('E_REQUIRE', 'This level requires the ' +
-        (level.requireBlockName || level.requireBlock) + ' block');
+        (level.requireBlockName || level.requireBlock) + ' block', null, null, 'requiredBlock',
+        { name: level.requireBlockName || level.requireBlock });
       r.requireBlock = level.requireBlock;
     }
     return r;

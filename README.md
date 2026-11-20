@@ -10,7 +10,7 @@ npm start
 # open http://localhost:8000
 ```
 
-Requires Node.js 18, 20, or 22 and later. Use `npm run dev` for the same development
+Requires Node.js 18.18+, 20.9+, or 22 and later. Use `npm run dev` for the same development
 server, or `npm start -- --port 8080` to choose another port. Open the app through
 HTTP; the source HTML uses module imports and cannot be opened directly via `file://`.
 
@@ -80,6 +80,7 @@ Command-line demo / regression:
 
 ```bash
 npm run demo       # print all 23 levels and reference solutions
+npm run lint       # at most 500 code lines per JavaScript file; ignores blank/comment-only lines
 npm test           # 58 checker + scope tests
 npm run test:ui     # starts its own development server and browser regression
 ```
@@ -110,6 +111,12 @@ tools/
 test/             checker and scope regression tests
 package.json      project metadata, commands and development dependencies
 ```
+
+ESLint checks all JavaScript files, including tests and tools, using
+`eslint.config.mjs`. Each file may contain at most 500 lines of code; blank lines
+and comment-only lines are excluded. A line containing both code and a comment
+still counts. Generated output in `dist/` and dependencies in `node_modules/` are
+excluded. Split files by responsibility when they reach this limit.
 
 ## Implemented blocks
 

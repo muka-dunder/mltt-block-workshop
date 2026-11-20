@@ -1,5 +1,7 @@
 /* Game shell: Blockly workspace, levels, checking, hints, progress. */
 import { createNotes } from './notes.js';
+import { createWorkshop, wt } from './workshop.js';
+import { makeTheme, toJson, createVariableTools } from './workspace-tools.js';
 
 (function () {
   'use strict';
@@ -23,32 +25,13 @@ import { createNotes } from './notes.js';
 
   let workspace = null;
   let answerBlock = null;
-  let allBlocks = false;
-  let toolboxSignature = '';
-  let lastWorkshopResult = null;
   let notes = null;
 
-  const workshopMessages = {
-    'zh-CN': {
-      workshopTitle: '构造工作坊', symbolsTitle: '可用符号', symbolHelp: '左侧可以直接拖取；点击这里的符号也能创建引用。局部变量须放回自己的作用域。',
-      declarationsTitle: '自己的声明', declarationHelp: '填写名称，把类型和定义体拖进声明积木。声明仅在本关生效；切关或重置会清空。', selectionTitle: '类型反馈',
-      addAssumption: '+ 假设', addDefinition: '+ 定义', addAxiom: '+ 公理', search: '输入名字查找符号', common: '积木：本关常用 ▾', all: '积木：全部 ▾',
-      known: '已知符号', local: '局部变量', own: '自定义', select: '选择一个积木，查看它的类型。', pending: '尚未完成', valid: '已检查',
-      dependent: '类型正确；使用额外假设：', experiment: '。这是实验结果，不计关卡星数。', definition: '定义', assumption: '假设', axiom: '公理',
-      selected: '当前目标：', cannotInfer: '这个构造需要目标类型；把它放进答案或类型标注积木后检查。',
-      notesTitle: '画布注释', addNote: '+ 注释', restoreTutorial: '恢复关卡解说', clearNotes: '清空我的笔记', notesHelp: '注释可以拖动、折叠和附着到积木。你的笔记会自动保存，重置答案也会保留。', clearNotesConfirm: '清空本关的个人笔记？关卡解说会保留。'
-    },
-    en: {
-      workshopTitle: 'Construction workshop', symbolsTitle: 'Available symbols', symbolHelp: 'Drag from the left, or click a symbol here to create a reference. Local variables belong inside their scope.',
-      declarationsTitle: 'Your declarations', declarationHelp: 'Name a declaration and attach its type and definition. Declarations belong to this level; switching or resetting clears them.', selectionTitle: 'Type feedback',
-      addAssumption: '+ Assumption', addDefinition: '+ Definition', addAxiom: '+ Axiom', search: 'Find a symbol by name', common: 'Blocks: suggested ▾', all: 'Blocks: all ▾',
-      known: 'Given symbols', local: 'Local variables', own: 'Custom', select: 'Select a block to inspect its type.', pending: 'Incomplete', valid: 'Checked',
-      dependent: 'Type correct; uses extra assumptions: ', experiment: '. Experimental result; no level stars awarded.', definition: 'Definition', assumption: 'Assumption', axiom: 'Axiom',
-      selected: 'Current goal: ', cannotInfer: 'This construction needs an expected type. Put it in the answer or a type annotation and check it.',
-      notesTitle: 'Canvas notes', addNote: '+ Note', restoreTutorial: 'Restore explanations', clearNotes: 'Clear my notes', notesHelp: 'Move, collapse, or attach notes to blocks. Your notes are saved automatically and survive answer resets.', clearNotesConfirm: 'Clear your notes for this level? Tutorial explanations will stay.'
-    }
-  };
-  const wt = (key) => workshopMessages[window.I18N.locale][key];
+  const workshop = createWorkshop({ getWorkspace: () => workspace, getLevel: () => state.level,
+    ensureAnswer, binderTypesText, goalText, toJson });
+  const { toolboxXml, checkConstruction, renderSymbols, renderSelection, refreshWorkshop, addDeclaration } = workshop;
+  const { refreshVars, highlightBinderFor } = createVariableTools({ getWorkspace: () => workspace,
+    getBusy: () => state.busy, setBusy: value => { state.busy = value; } });
 
   // ---------- Utilities ----------
   function renderLanguage() {
@@ -68,9 +51,7 @@ import { createNotes } from './notes.js';
       const lv = LEVELS[Number(option.value)];
       option.textContent = lv.id + ' ' + lv.title;
     }
-    document.querySelectorAll('[data-workshop-text]').forEach(el => { el.textContent = wt(el.dataset.workshopText); });
-    $('#symbolSearch').placeholder = wt('search');
-    $('#libraryToggle').textContent = wt(allBlocks ? 'all' : 'common');
+    workshop.renderLanguage();
     if (notes) notes.setLocale();
   }
 
@@ -130,105 +111,6 @@ import { createNotes } from './notes.js';
     return function () { clearTimeout(t); t = setTimeout(fn, ms); };
   }
 
-  // ---------- Theme ----------
-  function makeTheme() {
-    const base = (Blockly.Themes && Blockly.Themes.Classic) || undefined;
-    return Blockly.Theme.defineTheme('mlttDark', {
-      base,
-      componentStyles: {
-        workspaceBackgroundColour: '#0f1218',
-        toolboxBackgroundColour: '#151a23',
-        toolboxForegroundColour: '#dfe6f0',
-        flyoutBackgroundColour: '#1a202b',
-        flyoutForegroundColour: '#dfe6f0',
-        flyoutOpacity: 1,
-        scrollbarColour: '#39445a',
-        scrollbarOpacity: 0.7,
-        insertionMarkerColour: '#8fd0a8',
-        insertionMarkerOpacity: 0.4,
-        cursorColour: '#8fd0a8',
-      },
-      fontStyle: { family: 'ui-sans-serif, system-ui, -apple-system, "PingFang SC", "Noto Sans SC", sans-serif', size: 14 },
-    });
-  }
-
-  // ---------- Blocks -> JSON ----------
-  function toJson(b) {
-    const j = { type: b.type, id: b.id, fields: {}, inputs: {} };
-    if (b.ttBinds) { j.binds = b.ttBinds; j.names = {}; }
-    for (const inp of b.inputList) {
-      for (const f of inp.fieldRow) if (f.name) j.fields[f.name] = f.getValue();
-      if (inp.connection) {
-        const t = inp.connection.targetBlock();
-        if (t) j.inputs[inp.name] = toJson(t);
-      }
-    }
-    if (b.ttBinds && b.ttNameFields) {
-      for (const uids of Object.values(b.ttBinds)) {
-        for (const uid of uids) {
-          const fname = b.ttNameFields[uid];
-          j.names[uid] = fname ? (b.getFieldValue(fname) || 'x') : 'x';
-        }
-      }
-    }
-    return j;
-  }
-
-  // ---------- Local variable validation ----------
-  /** Binders avoid outer names by default; rename automatically on conflict. */
-  function refreshBinderNames() {
-    for (const b of workspace.getAllBlocks(false)) {
-      if (!b.ttBinds || !b.ttNameFields) continue;
-      const outer = window.LBM.bindersInScope(b);
-      if (!outer.length) continue;
-      const used = new Set(outer.map((o) => o.name));
-      for (const uids of Object.values(b.ttBinds)) {
-        for (const uid of uids) {
-          const fname = b.ttNameFields[uid];
-          if (!fname || !b.getField(fname)) continue;
-          const cur = b.getFieldValue(fname);
-          if (!used.has(cur)) { used.add(cur); continue; }
-          const fresh = window.LBM.nextBinderName(cur, used);
-          used.add(fresh);
-          b.setFieldValue(fresh, fname);
-        }
-      }
-    }
-  }
-
-  function refreshVars() {
-    if (!workspace || state.busy) return;
-    state.busy = true;
-    try {
-      refreshBinderNames();
-      for (const b of workspace.getBlocksByType('tt_var', false)) {
-        const f = b.getField('REF');
-        if (!f) continue;
-        let ref = window.LBM.decodeRef(f.getValue());
-        const list = window.LBM.bindersInScope(b);
-        // Empty reference: bind by saved name when possible, otherwise to the nearest binder.
-        if (!ref.uid && list.length) {
-          const target = (ref.name && list.find((x) => x.name === ref.name)) || list[0];
-          f.setValue(window.LBM.encodeRef(target.uid, target.name));
-          ref = { uid: target.uid, name: target.name };
-        }
-        const found = list.find((x) => x.uid === ref.uid) ||
-          (ref.name ? list.find((x) => x.name === ref.name) : null);
-        if (found) {
-          b.setWarningText(null);
-          b.setColour('#d7ccc8');
-          b.setTooltip(t('variable', { name: found.name, binder: found.block.type || 'binder' }));
-        } else if (ref.uid || ref.name) {
-          b.setWarningText(t('scope', { name: ref.name || '?' }));
-          b.setColour('#8b93a1');
-        }
-        try { f.forceRerender(); } catch (e) { /* older API */ }
-      }
-    } finally {
-      state.busy = false;
-    }
-  }
-
   // ---------- Panel / header ----------
   function renderPanel() {
     const lv = state.level;
@@ -265,175 +147,6 @@ import { createNotes } from './notes.js';
     el.innerHTML = html;
   }
 
-  // ---------- Toolbox ----------
-  const GROUPS = [
-    { name: 'Types', colour: '#5b8def', types: ['tt_pi', 'tt_sigma', 'tt_id', 'tt_nat', 'tt_bool', 'tt_empty', 'tt_unit', 'tt_U'] },
-    { name: 'Terms', colour: '#4f9d76', types: ['tt_lam', 'tt_var', 'tt_app', 'tt_pair', 'tt_zero', 'tt_suc', 'tt_true', 'tt_false', 'tt_star', 'tt_refl', 'tt_let', 'tt_annot', 'tt_hole'] },
-    { name: 'Eliminators', colour: '#c47a3d', types: ['tt_natrec', 'tt_unitrec', 'tt_sigma_ind', 'tt_J', 'tt_if', 'tt_absurd'] },
-    { name: 'Lemmas', colour: '#7b6ee0', types: ['tt_lemma'] },
-  ];
-
-  function parseXml(str) {
-    if (Blockly.utils && Blockly.utils.xml && Blockly.utils.xml.textToDom) {
-      return Blockly.utils.xml.textToDom(str);
-    }
-    return new DOMParser().parseFromString(str, 'text/xml').documentElement;
-  }
-
-  function localBinderSymbols() {
-    if (!workspace) return [];
-    const symbols = [];
-    const labels = { tt_lam: 'λ', tt_pi: 'Π', tt_sigma: 'Σ', tt_natrec: 'natrec', tt_sigma_ind: 'Σ-ind', tt_J: 'J', tt_let: 'let' };
-    for (const block of workspace.getAllBlocks(false)) {
-      if (block.type === 'tt_answer') continue;
-      for (const uid of new Set(Object.values(block.ttBinds || {}).flat())) {
-        const field = block.ttNameFields && block.ttNameFields[uid];
-        if (!field) continue;
-        const name = block.getFieldValue(field);
-        symbols.push({ name, owner: labels[block.type] || block.type, uid,
-          type: wt('local'), blockType: 'tt_var', field: 'REF', value: window.LBM.encodeRef(uid, name) });
-      }
-    }
-    return symbols;
-  }
-
-  function toolboxXml() {
-    const pal = new Set(state.level.palette);
-    let xml = '<xml>';
-    xml += '<label text="' + esc(wt('known')) + '"></label>';
-    state.level.givens.forEach((g, i) => { xml += '<block type="tt_given"><field name="IDX">' + i + '</field></block>'; });
-    const ans = workspace && workspace.getBlocksByType('tt_answer', false)[0];
-    (state.level.answerBinders || []).forEach((b, i) => {
-      const uid = ans && ans.ttBinds.TERM[i];
-      const name = ans ? ans.getFieldValue('BNAME' + i) : b.name;
-      xml += '<block type="tt_var"><field name="REF">' + esc(window.LBM.encodeRef(uid || '', name)) + '</field></block>';
-    });
-    for (const symbol of window.GAME_SYMBOLS || []) {
-      xml += '<block type="tt_symbol"><field name="REF">' + esc(symbol.id) + '</field></block>';
-    }
-    const locals = localBinderSymbols();
-    if (locals.length) xml += '<label text="' + esc(wt('local')) + '"></label>';
-    for (const symbol of locals) {
-      xml += '<label text="' + esc(symbol.owner + ' · ' + symbol.name) + '"></label>';
-      xml += '<block type="tt_var"><field name="REF">' + esc(symbol.value) + '</field></block>';
-    }
-    for (const g of GROUPS) {
-      const types = g.types.filter((t) => t !== 'tt_var' && (allBlocks || pal.has(t)));
-      if (!types.length) continue;
-      xml += '<label text="' + esc(t(g.name)) + '"></label>';
-      for (const t of types) {
-        xml += '<block type="' + t + '">';
-        if (t === 'tt_lemma') xml += '<field name="NAME">add</field>';
-        xml += '</block>';
-      }
-    }
-    xml += '</xml>';
-    return parseXml(xml);
-  }
-
-  // ---------- Levels ----------
-  function declarationJson() {
-    return workspace.getTopBlocks(false).filter(b => b.type === 'tt_declare').map(toJson);
-  }
-
-  function checkConstruction() {
-    const ans = ensureAnswer();
-    return MLTT.checkWorkshop(state.level, toJson(ans), declarationJson());
-  }
-
-  function createReference(symbol) {
-    const b = workspace.newBlock(symbol.blockType);
-    b.setFieldValue(symbol.value, symbol.field);
-    b.initSvg();
-    b.render();
-    const metrics = workspace.getMetrics();
-    b.moveBy((metrics.viewLeft + 35) / workspace.scale, (metrics.viewTop + 45) / workspace.scale);
-    workspace.centerOnBlock(b.id);
-    b.select();
-  }
-
-  function availableSymbols() {
-    const symbols = state.level.givens.map((g, i) => ({ name: g.name, type: ((window.GAME_GIVENS[i] || {}).label || '').slice(g.name.length + 3),
-      blockType: 'tt_given', field: 'IDX', value: String(i) }));
-    const ans = ensureAnswer();
-    (state.level.answerBinders || []).forEach((b, i) => symbols.push({ name: ans.getFieldValue('BNAME' + i),
-      type: binderTypesText()[i], blockType: 'tt_var', field: 'REF', value: window.LBM.encodeRef(ans.ttBinds.TERM[i], ans.getFieldValue('BNAME' + i)) }));
-    symbols.push(...localBinderSymbols().map(s => ({ ...s, type: s.type + ' · ' + s.owner })));
-    for (const d of window.GAME_SYMBOLS || []) {
-      const checked = lastWorkshopResult && (lastWorkshopResult.declarations || []).find(x => x.id === d.id);
-      symbols.push({ name: d.name, type: checked ? checked.typeText : wt('pending'), blockType: 'tt_symbol', field: 'REF', value: d.id });
-    }
-    return symbols;
-  }
-
-  function renderSymbols() {
-    const query = $('#symbolSearch').value.trim().toLowerCase();
-    $('#symbolList').replaceChildren();
-    for (const symbol of availableSymbols().filter(s => s.name.toLowerCase().includes(query))) {
-      const button = document.createElement('button');
-      button.type = 'button';
-      const name = document.createElement('span'); name.className = 'name'; name.textContent = symbol.name;
-      const type = document.createElement('span'); type.className = 'type'; type.textContent = ' : ' + symbol.type;
-      button.append(name, type);
-      button.addEventListener('click', () => createReference(symbol));
-      $('#symbolList').append(button);
-    }
-  }
-
-  function renderSelection() {
-    const selected = Blockly.getSelected();
-    const el = $('#selectionInfo');
-    if (!selected || selected.workspace !== workspace) { el.textContent = wt('select'); return; }
-    if (MLTT.inspectWorkshop) {
-      const r = MLTT.inspectWorkshop(state.level, toJson(ensureAnswer()), declarationJson(), selected.id, toJson(selected));
-      if (r.selectedType) { el.textContent = r.selectedType; return; }
-      if (r.selectedError) { el.textContent = window.I18N.error(r.selectedError); return; }
-    }
-    el.textContent = wt('selected') + goalText() + '\n' + wt('cannotInfer');
-  }
-
-  function refreshWorkshop() {
-    window.GAME_SYMBOLS = workspace.getTopBlocks(false).filter(b => b.type === 'tt_declare').map(b => ({ id: b.id, name: b.getFieldValue('NAME') }));
-    lastWorkshopResult = checkConstruction();
-    const signature = JSON.stringify([allBlocks, window.I18N.locale, window.GAME_SYMBOLS, localBinderSymbols(),
-      workspace.getBlocksByType('tt_answer', false).map(b => ((b.ttBinds && b.ttBinds.TERM) || []).map(uid => [uid, b.getFieldValue(b.ttNameFields[uid])]))]);
-    if (signature !== toolboxSignature) {
-      toolboxSignature = signature;
-      workspace.updateToolbox(toolboxXml());
-    }
-    for (const b of workspace.getBlocksByType('tt_symbol', false)) {
-      const field = b.getField('REF');
-      if (field) field.forceRerender();
-    }
-    $('#declarationList').replaceChildren();
-    for (const d of window.GAME_SYMBOLS) {
-      const row = document.createElement('div');
-      const checked = (lastWorkshopResult.declarations || []).find(x => x.id === d.id);
-      row.textContent = d.name + ' · ' + (checked ? wt('valid') + ' : ' + checked.typeText : wt('pending'));
-      $('#declarationList').append(row);
-    }
-    if (lastWorkshopResult.phase === 'declaration' && lastWorkshopResult.error) {
-      const row = document.createElement('p');
-      row.textContent = window.I18N.error(lastWorkshopResult.error);
-      $('#declarationList').append(row);
-    }
-    renderSymbols();
-    renderSelection();
-  }
-
-  function addDeclaration(kind) {
-    const used = new Set(availableSymbols().map(s => s.name));
-    const name = window.LBM.nextBinderName(kind === 'definition' ? 'myFunction' : 'a', used);
-    const b = workspace.newBlock('tt_declare');
-    b.setFieldValue(kind, 'KIND');
-    b.setFieldValue(name, 'NAME');
-    b.initSvg(); b.render();
-    const count = workspace.getBlocksByType('tt_declare', false).length;
-    b.moveBy(120, 180 + count * 85);
-    workspace.centerOnBlock(b.id); b.select();
-    refreshWorkshop();
-  }
-
   function loadLevel(i) {
     if (notes) notes.beforeLevelChange();
     state.loading = true;
@@ -445,7 +158,7 @@ import { createNotes } from './notes.js';
     workspace.clear();
     answerBlock = null;
     window.GAME_SYMBOLS = [];
-    lastWorkshopResult = null;
+    workshop.reset();
     // Read by tt_given init (toolbox blocks are instantiated in updateToolbox).
     let ctx0 = [];
     try { ctx0 = MLTT.buildCtx(state.level.givens); } catch (e) { ctx0 = []; }
@@ -727,15 +440,7 @@ import { createNotes } from './notes.js';
     }
 
     $('#languageSelect').addEventListener('change', (e) => switchLanguage(e.target.value));
-    $('#libraryToggle').addEventListener('click', () => {
-      allBlocks = !allBlocks;
-      $('#libraryToggle').textContent = wt(allBlocks ? 'all' : 'common');
-      refreshWorkshop();
-    });
-    $('#symbolSearch').addEventListener('input', renderSymbols);
-    $('#addAssumption').addEventListener('click', () => addDeclaration('assumption'));
-    $('#addDefinition').addEventListener('click', () => addDeclaration('definition'));
-    $('#addAxiom').addEventListener('click', () => addDeclaration('axiom'));
+    workshop.bindControls();
     $('#addNote').addEventListener('click', () => notes.add());
     $('#restoreTutorial').addEventListener('click', () => notes.restoreTutorial());
     $('#clearNotes').addEventListener('click', () => {
@@ -778,7 +483,7 @@ import { createNotes } from './notes.js';
       const term = slot.term;
       if (term) {
         // Keep feedback in sync even after a previously correct answer changes.
-        const r = lastWorkshopResult;
+        const r = workshop.lastResult;
         if (r.ok && r.assumptions && r.assumptions.length) setStatus(() => esc(wt('dependent') + r.assumptions.map(a => a.name).join(', ') + wt('experiment')), 'ok');
         else if (r.ok) setStatus(() => t('looksRight'), 'ok');
         else if (r.error) setStatus(() => esc(window.I18N.error(r.error)), 'warn');
@@ -808,18 +513,6 @@ import { createNotes } from './notes.js';
     notes = createNotes({ workspace, host: $('#blocklyDiv'), locale: () => window.I18N.locale,
       getLevel: () => state.level, getAnswer: () => answerBlock });
     loadLevel(state.index);
-  }
-
-  function highlightBinderFor(id) {
-    if (!id || !workspace) return;
-    const b = workspace.getBlockById(id);
-    if (!b || b.type !== 'tt_var') return;
-    const ref = window.LBM.decodeRef(b.getFieldValue('REF'));
-    const found = window.LBM.findBinder(b, ref.uid);
-    if (found && found.block) {
-      try { workspace.highlightBlock(found.block.id); } catch (e) {}
-      setTimeout(() => { try { workspace.highlightBlock(null); } catch (e) {} }, 1200);
-    }
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);

@@ -16,8 +16,15 @@ async function start() {
   await import('./i18n/locales/levels.zh-CN.js');
   await import('./i18n/locales/errors.js');
   await import('./i18n/index.js');
+  await import('./core/runtime.js');
+  await import('./core/printing.js');
+  await import('./core/checking.js');
+  await import('./core/block-checking.js');
   await import('./core/mltt.js');
+  await import('./levels/foundations.js');
+  await import('./levels/advanced.js');
   await import('./levels/index.js');
+  await import('./blockly/scope.js');
   await import('./blockly/blocks.js');
   await import('./ui/app.js');
 }

@@ -78,6 +78,7 @@
 
   function evalTm(env, tm) {
     switch (tm.t) {
+      case 'symbol': return tm.value;
       case 'var': return env[env.length - 1 - tm.i];
       case 'const': return vNe({ h: 'const', name: tm.name }, []);
       case 'ref': {
@@ -276,6 +277,7 @@
   // ---------------- Type checking ----------------
   function infer(ctx, tm) {
     switch (tm.t) {
+      case 'symbol': return tm.tyValue;
       case 'var': {
         const k = ctx.length - 1 - tm.i;
         if (k < 0 || k >= ctx.length) fail('E_FREE', 'Free variable out of bounds (scope resolution error)', tm, null, 'freeVariable');
@@ -492,6 +494,7 @@
       }
       case 'ref': return tm.name;
       case 'const': return tm.name;
+      case 'symbol': return tm.name;
       case 'U': return tm.l === 0 ? 'Type' : 'Type ' + tm.l;
       case 'nat': return 'ℕ';
       case 'bool': return 'Bool';
@@ -664,6 +667,12 @@
     const push = (uid) => scope.concat([{ uid, name: nameOf(uid) }]);
 
     switch (j.type) {
+      case 'tt_symbol': {
+        const id = j.fields && j.fields.REF;
+        const symbol = opts.symbols && opts.symbols.get(id);
+        if (!symbol) fail('E_SCOPE', 'Unknown declaration: ' + (id || '?'), { src }, null, 'declarationMissing', { id: id || '?' });
+        return { t: 'symbol', name: symbol.name, value: symbol.value, tyValue: symbol.tyValue, src };
+      }
       case 'tt_var': {
         const raw = (j.fields && j.fields.REF) || '';
         const bar = raw.indexOf('\u241F');
@@ -704,7 +713,7 @@
         return elabBlock(inp('TERM'), sc, opts);
       }
       case 'tt_annot': return Annot(el('TERM'), el('TYPE'), src);
-      case 'tt_suc': return Suc(el('N'), src);
+      case 'tt_suc': return Object.assign(SUC(el('N')), { src });
       case 'tt_fst': return Fst(el('P'), src);
       case 'tt_snd': return Snd(el('P'), src);
       case 'tt_app': return App(el('F'), el('A'), src);
@@ -800,12 +809,134 @@
     return r;
   }
 
+  // Workshop symbols hold checked semantic values. They are local to one check,
+  // never enter DEFS, and can therefore safely depend on the level context.
+  function checkWorkshop(level, blockJson, declarationBlocks, inspection) {
+    declarationBlocks = declarationBlocks || [];
+    const declarations = [], symbols = new Map(), dependencies = new Map();
+    try {
+      const ctx = buildCtx(level.givens);
+      const binders = level.answerBinders || (level.answerBinder ? [level.answerBinder] : []);
+      for (const b of binders) {
+        sortOf(ctx, b.ty);
+        ctx.push({ name: b.name, ty: evalTm(envOf(ctx), b.ty) });
+      }
+      const answerUids = blockJson && blockJson.binds && blockJson.binds.TERM || [];
+      const answerScope = binders.map((b, i) => ({
+        uid: answerUids[i],
+        name: blockJson && blockJson.names && blockJson.names[answerUids[i]] || b.name,
+      }));
+      const opts = { nGivens: level.givens.length, symbols };
+      const names = new Set(ctx.map(c => c.name));
+      for (const entry of answerScope) names.add(entry.name);
+      const byId = new Map();
+      for (const d of declarationBlocks) {
+        const name = String(d.fields && d.fields.NAME || '').trim();
+        const kind = d.fields && d.fields.KIND;
+        if (!name || /[\s:␟]/u.test(name)) fail('E_DECLARATION', 'Enter a symbol name without spaces or colons', { src: d.id }, null, 'declarationName');
+        if (names.has(name) || DEFS.has(name)) fail('E_DECLARATION', 'Symbol name is already used: ' + name, { src: d.id }, null, 'declarationDuplicate', { name });
+        if (!['assumption', 'axiom', 'definition'].includes(kind)) fail('E_DECLARATION', 'Unknown declaration kind', { src: d.id }, null, 'declarationKind');
+        if (!d.id || byId.has(d.id)) fail('E_DECLARATION', 'Declaration needs a unique ID', { src: d.id }, null, 'declarationId');
+        names.add(name);
+        byId.set(d.id, d);
+      }
+      function references(j, result = new Set()) {
+        if (!j) return result;
+        if (j.type === 'tt_symbol') result.add(j.fields && j.fields.REF);
+        for (const child of Object.values(j.inputs || {})) references(child, result);
+        return result;
+      }
+      const visiting = new Set();
+      function resolve(id) {
+        if (symbols.has(id)) return;
+        const d = byId.get(id);
+        if (!d) fail('E_SCOPE', 'Declaration has been removed or is unavailable: ' + (id || '?'), { src: id }, null, 'declarationMissing', { id: id || '?' });
+        if (visiting.has(id)) fail('E_DECLARATION', 'Circular declaration: ' + d.fields.NAME, { src: id }, null, 'declarationCircular', { name: d.fields.NAME });
+        visiting.add(id);
+        const kind = d.fields.KIND, name = d.fields.NAME.trim();
+        const inputs = d.inputs || {};
+        const refs = references(inputs.TYPE);
+        if (kind === 'definition') references(inputs.VALUE, refs);
+        for (const ref of refs) resolve(ref);
+        dependencies.set(id, refs);
+        const active = { type: 'tt_declare', inputs: { TYPE: inputs.TYPE } };
+        if (kind === 'definition') active.inputs.VALUE = inputs.VALUE;
+        if (hasBlockType(active, 'tt_hole')) fail('E_DECLARATION', 'Complete the declaration before using it', { src: id }, null, 'declarationIncomplete');
+        const ty = elabBlock(inputs.TYPE, answerScope, opts);
+        sortOf(ctx, ty);
+        const tyValue = evalTm(envOf(ctx), ty);
+        let value;
+        if (kind === 'definition') {
+          const term = elabBlock(inputs.VALUE, answerScope, opts);
+          const goals = [];
+          check(ctx, term, tyValue, goals);
+          if (goals.length) fail('E_DECLARATION', 'Complete the definition before using it', { src: id }, null, 'declarationIncomplete');
+          value = evalTm(envOf(ctx), term);
+        } else value = vNe({ h: 'const', name }, []);
+        symbols.set(id, { name, tyValue, value });
+        declarations.push({ id, name, kind, typeText: showVal(ctx, tyValue) });
+        visiting.delete(id);
+      }
+      for (const id of byId.keys()) resolve(id);
+      const used = references(blockJson);
+      function includeDependencies(id) {
+        for (const ref of dependencies.get(id) || []) {
+          if (!used.has(ref)) { used.add(ref); includeDependencies(ref); }
+        }
+      }
+      for (const id of used) includeDependencies(id);
+      const assumptions = declarations.filter(d => d.kind !== 'definition' && used.has(d.id));
+      const tm = elabBlock(blockJson, [], { ...opts, answerBinder: !!binders.length });
+      const result = checkLevel(level, tm);
+      if (result.ok && level.requireBlock && !hasBlockType(blockJson, level.requireBlock)) {
+        result.ok = false;
+        result.error = new CheckError('E_REQUIRE', 'This level requires the ' + (level.requireBlockName || level.requireBlock) + ' block', null, null, 'requiredBlock', { name: level.requireBlockName || level.requireBlock });
+      }
+      const output = Object.assign(result, { term: tm, declarations, assumptions });
+      if (inspection) {
+        const declaration = declarations.find(d => d.id === inspection.id);
+        if (declaration) output.selectedType = declaration.typeText;
+        else {
+          let selected = inspection.json, nestedScope = false;
+          function find(j, nested = false) {
+            if (!j) return;
+            if (j.id === inspection.id) { selected = j; nestedScope = nested; }
+            for (const [input, child] of Object.entries(j.inputs || {})) {
+              find(child, nested || j.type !== 'tt_answer' && !!(j.binds && j.binds[input]?.length));
+            }
+          }
+          find(blockJson);
+          try {
+            if (nestedScope) fail('E_SCOPE', 'Select the complete expression to check its local bindings', { src: inspection.id });
+            if (result.ok && (selected === blockJson || selected && selected.id === (blockJson.inputs && blockJson.inputs.TERM && blockJson.inputs.TERM.id))) {
+              output.selectedType = showVal(ctx, level.inferTerm ? infer(ctx, tm) : evalTm(envOf(ctx), level.goal));
+            } else if (selected) {
+              const selectedTm = selected === blockJson ? tm : elabBlock(selected, answerScope, opts);
+              output.selectedType = showVal(ctx, infer(ctx, selectedTm));
+            }
+          } catch (e) { output.selectedError = e; }
+        }
+      }
+      return output;
+    } catch (error) {
+      if (error instanceof CheckError) return { ok: false, error, declarations, assumptions: [], phase: 'declaration' };
+      throw error;
+    }
+  }
+
+  function inspectWorkshop(level, blockJson, declarations, selectedId, selectedJson) {
+    if (blockJson && !blockJson.inputs?.TERM) {
+      blockJson = { ...blockJson, inputs: { ...blockJson.inputs, TERM: { type: 'tt_hole', id: '__inspection_empty' } } };
+    }
+    return checkWorkshop(level, blockJson, declarations, { id: selectedId, json: selectedJson });
+  }
+
   return {
     // terms
     Var, U, Pi, Sigma, Lam, App, Pair, Fst, Snd, Id, NatRec, If, Absurd, J, Annot, Hole, Ref, Const, UnitRec, SigmaInd,
     NAT, ZERO, SUC, BOOL, TRUE, FALSE, EMPTY, UNIT, STAR, REFL,
     // checking
-    evalTm, quote, conv, infer, check, sortOf, buildCtx, checkLevel, elabBlock, checkBlocks,
+    evalTm, quote, conv, infer, check, sortOf, buildCtx, checkLevel, elabBlock, checkBlocks, checkWorkshop, inspectWorkshop,
     envOf, define, clearDefs, DEFS,
     // printing
     show, showVal,

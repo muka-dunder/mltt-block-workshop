@@ -81,6 +81,8 @@ main {
   flex: 1 1 auto;
   min-height: 0;
   position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
 }
 
 .level-head { display: flex; align-items: baseline; gap: 8px; }
@@ -171,12 +173,12 @@ kbd {
 }
 
 .status {
-  position: fixed;
-  left: 50%;
+  position: absolute;
+  left: calc((100% - 280px) / 2);
   transform: translateX(-50%);
   bottom: 14px;
   z-index: 10;
-  max-width: min(560px, calc(100vw - 28px));
+  max-width: min(560px, calc(100% - 308px));
   font-size: 12.5px;
   line-height: 1.6;
   border-radius: 10px;
@@ -246,6 +248,50 @@ details li b { color: var(--text); }
   min-height: 0;
 }
 
+/* The symbol library stays beside the canvas, never over the blocks. */
+#workshopPanel {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  border-left: 1px solid var(--line);
+  background: var(--bg2);
+}
+.workshop-details { padding: 0; border: 0; border-radius: 0; background: transparent; }
+.workshop-details > summary {
+  padding: 17px 16px;
+  font-weight: 700;
+  font-size: 14px;
+  border-bottom: 1px solid var(--line);
+}
+.workshop-content { padding: 16px; }
+.workshop-content section { padding-top: 18px; margin-top: 18px; border-top: 1px solid var(--line); }
+.workshop-content h2 { margin: 0 0 10px; color: #cbd6e6; font-size: 12px; font-weight: 650; }
+.workshop-content small { display: block; color: var(--muted); font-size: 11px; line-height: 1.7; margin-top: 9px; }
+#symbolSearch {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  padding: 8px 10px;
+  margin-bottom: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #0d121b;
+  color: var(--text);
+  font: inherit;
+}
+#symbolSearch::placeholder { color: var(--muted); }
+#symbolSearch:focus { outline: 2px solid var(--accent2); outline-offset: 2px; }
+.symbol-list { display: grid; gap: 6px; }
+.symbol-list button { display: block; width: 100%; text-align: left; padding: 9px 10px; border-radius: 8px; overflow-wrap: anywhere; font-family: var(--mono); font-size: 12px; }
+.symbol-list button .name { color: var(--accent); }
+.symbol-list button .type { color: var(--muted); }
+.declaration-actions { display: flex; flex-wrap: wrap; gap: 5px; }
+.declaration-actions button { padding: 6px 9px; border-radius: 7px; font-size: 11px; }
+.declaration-list { margin-top: 10px; font-size: 11px; line-height: 1.7; overflow-wrap: anywhere; }
+.declaration-list > * { margin: 6px 0; }
+#selectionInfo { color: var(--muted); font-family: var(--mono); font-size: 12px; line-height: 1.7; overflow-wrap: anywhere; white-space: pre-wrap; }
+button:focus-visible, summary:focus-visible { outline: 2px solid var(--accent2); outline-offset: 2px; }
+
 /* lexical-variables flydown background (the plugin CSS only applies inside the block canvas) */
 .blocklyFieldFlydownFlydown { fill: #1a202b; stroke: #39445a; stroke-width: 1px; }
 
@@ -296,4 +342,14 @@ details li b { color: var(--text); }
   .hint-float { top: 56px; }
   .status { font-size: 12px; }
   .level-tag { display: none; }
+}
+
+@media (max-width: 640px) {
+  main { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; }
+  #workshopPanel { border-left: 0; border-top: 1px solid var(--line); max-height: 35dvh; }
+  .workshop-details > summary { padding: 10px 14px; }
+  .workshop-content { padding: 12px 14px; }
+  .workshop-content section { margin-top: 12px; padding-top: 12px; }
+  .status { left: 50%; bottom: calc(35dvh + 10px); max-width: calc(100% - 28px); }
+  main:has(.workshop-details:not([open])) .status { bottom: 53px; }
 }

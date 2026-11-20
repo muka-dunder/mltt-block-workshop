@@ -33,6 +33,31 @@ Level text, block help, Blockly menus and checker errors are localized; mathemat
 notation and variable names stay unchanged. All 23 levels have Chinese text,
 including the levels not currently exposed in the UI.
 
+## Construction workshop
+
+The left block shelf stays open. Every given and answer-slot variable has its own
+draggable reference, including type variables. Use the header block-library button
+to switch between the level's suggested blocks and the complete library; the
+level palette no longer limits what can be constructed.
+
+The workshop panel displays the level introduction and searchable symbols.
+Clicking a symbol creates a reference on the canvas. Local references must be
+placed inside their binder's scope. Selecting an expression shows type feedback.
+
+Use **Assumption**, **Definition**, or **Axiom** to create a named declaration.
+Attach a type using blocks; definitions also require a body of that type. Checked
+definitions are transparent and can be used as reusable blocks. References use
+declaration IDs, so renaming a declaration preserves its references. Invalid,
+duplicate, circular, or incomplete declarations produce checker errors.
+
+Results that depend on additional assumptions or axioms show those dependencies
+and do not award level stars. Declarations belong to the current level and are
+cleared when switching or resetting; they are not saved across reloads.
+
+Run `node test/declarations.js` for declaration checks and
+`node tools/browser/workshop-test.js` for workshop interactions (defaults to Edge;
+set `PLAYWRIGHT_CHANNEL` to choose another installed browser).
+
 Translations use the small `src/i18n/index.js` service and dictionaries under
 `src/i18n/locales/`. The checker keeps its English
 `message` for compatibility and provides `messageKey` / `messageParams` for display.

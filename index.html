@@ -19,6 +19,7 @@
   </div>
   <select id="languageSelect" aria-label="Language"><option value="en">English</option><option value="zh-CN">简体中文</option></select>
   <div class="actions">
+    <button id="libraryToggle" class="ghost" type="button">全部积木</button>
     <button id="checkBtn" class="primary">Check</button>
     <button id="hintBtn" class="ghost">Hint</button>
     <button id="resetBtn" class="ghost">Reset</button>
@@ -28,6 +29,34 @@
 
 <main>
   <div id="blocklyDiv"></div>
+  <aside id="workshopPanel" aria-label="构造工作坊">
+    <details class="workshop-details" open>
+      <summary><span data-workshop-text="workshopTitle">构造工作坊</span></summary>
+      <div class="workshop-content">
+        <p id="levelStory" class="story"></p>
+        <section aria-labelledby="symbolsTitle">
+          <h2 id="symbolsTitle" data-workshop-text="symbolsTitle">符号</h2>
+          <input id="symbolSearch" type="search" placeholder="搜索符号" aria-label="搜索符号" autocomplete="off">
+          <div id="symbolList" class="symbol-list"></div>
+          <small data-workshop-text="symbolHelp">点击符号在画布创建引用，也可从左侧直接拖出。</small>
+        </section>
+        <section aria-labelledby="declarationsTitle">
+          <h2 id="declarationsTitle" data-workshop-text="declarationsTitle">自己的声明</h2>
+          <div class="declaration-actions">
+            <button id="addAssumption" type="button" data-workshop-text="addAssumption">＋ 假设</button>
+            <button id="addDefinition" type="button" data-workshop-text="addDefinition">＋ 定义</button>
+            <button id="addAxiom" type="button" data-workshop-text="addAxiom">＋ 公理</button>
+          </div>
+          <small data-workshop-text="declarationHelp">把类型和定义体拖进声明积木，检查后即可引用。</small>
+          <div id="declarationList" class="declaration-list" aria-live="polite"></div>
+        </section>
+        <section aria-labelledby="selectionTitle">
+          <h2 id="selectionTitle" data-workshop-text="selectionTitle">所选项的类型</h2>
+          <div id="selectionInfo" aria-live="polite"></div>
+        </section>
+      </div>
+    </details>
+  </aside>
   <ol id="hintBox" class="hint-float"></ol>
   <div id="status" class="status idle">Drag a term into the answer slot on the canvas, then press Check.</div>
 </main>

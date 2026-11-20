@@ -6,6 +6,13 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
   const en = {
+    declarationName: 'Enter a symbol name without spaces or colons',
+    declarationDuplicate: 'Symbol name is already used: {name}',
+    declarationKind: 'Unknown declaration kind',
+    declarationId: 'Declaration needs a unique ID',
+    declarationMissing: 'Declaration has been removed or is unavailable: {id}',
+    declarationCircular: 'Circular declaration: {name}',
+    declarationIncomplete: 'Complete the type and definition before using this declaration',
     internalApply: 'Attempted to apply a non-function',
     internalFst: 'fst applied to a non-pair',
     internalSnd: 'snd applied to a non-pair',
@@ -42,6 +49,13 @@
     requiredBlock: 'This level requires the {name} block'
   };
   const zhCN = {
+    declarationName: '请填写符号名称，名称中不能有空格或冒号。',
+    declarationDuplicate: '符号名称已被使用：{name}',
+    declarationKind: '无法识别的声明种类。',
+    declarationId: '每个声明都需要独立的标识。',
+    declarationMissing: '声明已被删除或当前不可用：{id}',
+    declarationCircular: '声明相互循环引用：{name}',
+    declarationIncomplete: '请先补全这个声明的类型和定义体。',
     internalApply: '尝试调用非函数的值',
     internalFst: 'fst 的参数不是序对',
     internalSnd: 'snd 的参数不是序对',

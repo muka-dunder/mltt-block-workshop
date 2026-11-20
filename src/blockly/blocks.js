@@ -57,6 +57,15 @@
         out.push({ uid, name, block: p, colour: p.ttColour || binderColour(uid) });
       }
     }
+    if (child.type === 'tt_declare' && block !== child) {
+      const answer = block.workspace.getBlocksByType('tt_answer', false)[0];
+      if (answer) {
+        for (const uid of [...(answer.ttBinds && answer.ttBinds.TERM || [])].reverse()) {
+          const field = answer.ttNameFields[uid];
+          out.push({ uid, name: answer.getFieldValue(field), block: answer, colour: answer.ttColour });
+        }
+      }
+    }
     return out;
   }
 
@@ -186,6 +195,53 @@
   // ================= Blocks =================
 
   // Variable
+  const workshopText = (zh, en) => global.I18N.locale === 'zh-CN' ? zh : en;
+  class FieldSymbolRef extends B.FieldDropdown {
+    constructor() {
+      super(() => {
+        const symbols = global.GAME_SYMBOLS || [];
+        return symbols.length ? symbols.map(s => [s.name, s.id]) : [['∅', '']];
+      });
+    }
+    doClassValidation_(value) { return typeof value === 'string' ? value : null; }
+    getText_() {
+      const id = this.getValue();
+      const found = (global.GAME_SYMBOLS || []).find(s => s.id === id);
+      return found ? found.name : (id ? '⚠ ' + workshopText('已删除', 'removed') : '∅');
+    }
+  }
+  B.Blocks['tt_symbol'] = {
+    init() {
+      this.appendDummyInput().appendField(new FieldSymbolRef(), 'REF');
+      this.setOutput(true, null);
+      this.setColour('#c3b5e5');
+      this.setTooltip(workshopText('引用自定义声明；重命名后仍引用同一声明。', 'Reference a declaration by its stable identity.'));
+    }
+  };
+  B.Blocks['tt_declare'] = {
+    init() {
+      this.appendDummyInput()
+        .appendField(new B.FieldDropdown([
+          [workshopText('定义', 'Definition'), 'definition'],
+          [workshopText('假设', 'Assumption'), 'assumption'],
+          [workshopText('公理', 'Axiom'), 'axiom'],
+        ], function(value) {
+          const block = this.getSourceBlock();
+          if (block) block.updateDeclarationShape(value);
+          return value;
+        }), 'KIND')
+        .appendField(new B.FieldTextInput('mySymbol'), 'NAME');
+      this.appendValueInput('TYPE').appendField(':');
+      this.appendValueInput('VALUE').appendField(':=');
+      this.setColour('#7b6aa8');
+      this.setTooltip(workshopText('先填写类型；定义还需要一个具有该类型的值。额外假设会显示在检查结果中。', 'Supply a type and, for a definition, a value of that type. Extra assumptions are tracked.'));
+    },
+    updateDeclarationShape(kind) {
+      const input = this.getInput('VALUE');
+      if (input) input.setVisible(kind === 'definition');
+    },
+  };
+
   B.Blocks['tt_var'] = {
     init() {
       this.appendDummyInput().appendField(new FieldBinderRef(''), 'REF');

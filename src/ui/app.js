@@ -1,4 +1,6 @@
 /* Game shell: Blockly workspace, levels, checking, hints, progress. */
+import { createNotes } from './notes.js';
+
 (function () {
   'use strict';
   const $ = (s) => document.querySelector(s);
@@ -24,6 +26,7 @@
   let allBlocks = false;
   let toolboxSignature = '';
   let lastWorkshopResult = null;
+  let notes = null;
 
   const workshopMessages = {
     'zh-CN': {
@@ -32,7 +35,8 @@
       addAssumption: '+ 假设', addDefinition: '+ 定义', addAxiom: '+ 公理', search: '输入名字查找符号', common: '积木：本关常用 ▾', all: '积木：全部 ▾',
       known: '已知符号', local: '局部变量', own: '自定义', select: '选择一个积木，查看它的类型。', pending: '尚未完成', valid: '已检查',
       dependent: '类型正确；使用额外假设：', experiment: '。这是实验结果，不计关卡星数。', definition: '定义', assumption: '假设', axiom: '公理',
-      selected: '当前目标：', cannotInfer: '这个构造需要目标类型；把它放进答案或类型标注积木后检查。'
+      selected: '当前目标：', cannotInfer: '这个构造需要目标类型；把它放进答案或类型标注积木后检查。',
+      notesTitle: '画布注释', addNote: '+ 注释', restoreTutorial: '恢复关卡解说', clearNotes: '清空我的笔记', notesHelp: '注释可以拖动、折叠和附着到积木。你的笔记会自动保存，重置答案也会保留。', clearNotesConfirm: '清空本关的个人笔记？关卡解说会保留。'
     },
     en: {
       workshopTitle: 'Construction workshop', symbolsTitle: 'Available symbols', symbolHelp: 'Drag from the left, or click a symbol here to create a reference. Local variables belong inside their scope.',
@@ -40,7 +44,8 @@
       addAssumption: '+ Assumption', addDefinition: '+ Definition', addAxiom: '+ Axiom', search: 'Find a symbol by name', common: 'Blocks: suggested ▾', all: 'Blocks: all ▾',
       known: 'Given symbols', local: 'Local variables', own: 'Custom', select: 'Select a block to inspect its type.', pending: 'Incomplete', valid: 'Checked',
       dependent: 'Type correct; uses extra assumptions: ', experiment: '. Experimental result; no level stars awarded.', definition: 'Definition', assumption: 'Assumption', axiom: 'Axiom',
-      selected: 'Current goal: ', cannotInfer: 'This construction needs an expected type. Put it in the answer or a type annotation and check it.'
+      selected: 'Current goal: ', cannotInfer: 'This construction needs an expected type. Put it in the answer or a type annotation and check it.',
+      notesTitle: 'Canvas notes', addNote: '+ Note', restoreTutorial: 'Restore explanations', clearNotes: 'Clear my notes', notesHelp: 'Move, collapse, or attach notes to blocks. Your notes are saved automatically and survive answer resets.', clearNotesConfirm: 'Clear your notes for this level? Tutorial explanations will stay.'
     }
   };
   const wt = (key) => workshopMessages[window.I18N.locale][key];
@@ -66,6 +71,7 @@
     document.querySelectorAll('[data-workshop-text]').forEach(el => { el.textContent = wt(el.dataset.workshopText); });
     $('#symbolSearch').placeholder = wt('search');
     $('#libraryToggle').textContent = wt(allBlocks ? 'all' : 'common');
+    if (notes) notes.setLocale();
   }
 
   function switchLanguage(locale) {
@@ -73,6 +79,7 @@
     // XML retains block IDs, positions, field values and binder references.
     // Keep this in memory so a storage-disabled browser can switch safely too.
     const xml = Blockly.Xml.workspaceToDom(workspace);
+    if (notes) notes.beforeLevelChange();
     const view = { scale: workspace.scale, x: workspace.scrollX, y: workspace.scrollY };
     const previousStatus = statusRenderer;
     const overlayOpen = $('#overlay').classList.contains('show');
@@ -92,9 +99,11 @@
       renderPanel();
       refreshVars();
       refreshWorkshop();
+      if (notes) notes.loadLevel(state.level);
       if (previousStatus) setStatus(previousStatus.html, previousStatus.kind);
       if (overlayOpen) showWin(state.stars[state.level.id] || 0, blockCount(answerBlock.getInputTargetBlock('TERM')));
       Blockly.svgResize(workspace);
+      if (notes) notes.refresh();
     } finally {
       Blockly.Events.enable();
       state.loading = false;
@@ -426,6 +435,7 @@
   }
 
   function loadLevel(i) {
+    if (notes) notes.beforeLevelChange();
     state.loading = true;
     state.index = (i + LEVELS.length) % LEVELS.length;
     state.level = LEVELS[state.index];
@@ -468,6 +478,7 @@
     workspace.updateToolbox(toolboxXml());
     try { workspace.scroll(0, 0); } catch (e) { /* ignore */ }
     answerBlock = ensureAnswer();
+    if (notes) notes.loadLevel(state.level);
     refreshWorkshop();
     renderPanel();
     setStatus(() => state.level.inferTerm
@@ -476,10 +487,8 @@
     $('#levelSelect').value = String(state.index);
     saveProgress();
     state.loading = false;
-    setTimeout(() => {
-      try { Blockly.svgResize(workspace); } catch (e) {}
-      centerOnAnswer();
-    }, 50);
+    Blockly.svgResize(workspace);
+    centerOnAnswer();
   }
 
   // ---------- Answer slot ----------
@@ -589,6 +598,7 @@
   function centerOnAnswer() {
     if (!workspace || !answerBlock) return;
     try { workspace.centerOnBlock(answerBlock.id); } catch (e) { /* ignore */ }
+    if (notes) notes.focusTutorial();
   }
 
   function answerTerm() {
@@ -726,6 +736,11 @@
     $('#addAssumption').addEventListener('click', () => addDeclaration('assumption'));
     $('#addDefinition').addEventListener('click', () => addDeclaration('definition'));
     $('#addAxiom').addEventListener('click', () => addDeclaration('axiom'));
+    $('#addNote').addEventListener('click', () => notes.add());
+    $('#restoreTutorial').addEventListener('click', () => notes.restoreTutorial());
+    $('#clearNotes').addEventListener('click', () => {
+      if (confirm(wt('clearNotesConfirm'))) notes.clearUserNotes();
+    });
 
     $('#checkBtn').addEventListener('click', () => doCheck(true));
     $('#hintBtn').addEventListener('click', () => {
@@ -748,6 +763,7 @@
     });
 
     document.addEventListener('keydown', (e) => {
+      if (e.target.closest('.notes-layer')) return;
       if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); doCheck(true); }
     });
 
@@ -757,6 +773,7 @@
       refreshWorkshop();
       // The term in the slot changed; re-render the answer block (large terms can overflow the border).
       if (answerBlock) { try { answerBlock.render(); } catch (e) { /* ignore */ } }
+      if (notes) notes.refresh();
       const slot = answerTerm();
       const term = slot.term;
       if (term) {
@@ -788,6 +805,8 @@
     window.addEventListener('resize', () => { try { Blockly.svgResize(workspace); } catch (e) {} });
     new ResizeObserver(() => Blockly.svgResize(workspace)).observe($('#blocklyDiv'));
 
+    notes = createNotes({ workspace, host: $('#blocklyDiv'), locale: () => window.I18N.locale,
+      getLevel: () => state.level, getAnswer: () => answerBlock });
     loadLevel(state.index);
   }
 
@@ -815,5 +834,6 @@
     switchLanguage,
     refreshWorkshop,
     addDeclaration,
+    get notes() { return notes; },
   };
 })();

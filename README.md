@@ -54,9 +54,23 @@ Results that depend on additional assumptions or axioms show those dependencies
 and do not award level stars. Declarations belong to the current level and are
 cleared when switching or resetting; they are not saved across reloads.
 
+Canvas notes are separate from checked expressions. Use **+ Note** or a block's
+context menu to create a plain-text card. Cards can be moved, resized, collapsed,
+and attached to a block so they follow it. Tutorial explanations are read-only
+and can be restored independently. All exposed levels (L0–L16) include bilingual
+explanations beside the answer, with larger text and cards for detailed guidance.
+Personal notes are saved per level in this
+browser and survive answer resets and reloads. **Clear my notes** removes only
+personal notes in the current level. Notes do not count toward stars or affect
+type checking. If a referenced scratch block is removed, its note stays on the
+canvas as a free card.
+
 Run `node test/declarations.js` for declaration checks and
 `node tools/browser/workshop-test.js` for workshop interactions (defaults to Edge;
 set `PLAYWRIGHT_CHANNEL` to choose another installed browser).
+Run `node tools/browser/notes-test.js` to check note editing, persistence,
+attachment, dragging, resizing, and independent clearing.
+Run `node tools/browser/tutorials-test.js` to verify tutorial coverage and placement.
 
 Translations use the small `src/i18n/index.js` service and dictionaries under
 `src/i18n/locales/`. The checker keeps its English

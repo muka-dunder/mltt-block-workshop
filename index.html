@@ -34,6 +34,15 @@
       <summary><span data-workshop-text="workshopTitle">构造工作坊</span></summary>
       <div class="workshop-content">
         <p id="levelStory" class="story"></p>
+        <section aria-labelledby="notesTitle">
+          <h2 id="notesTitle" data-workshop-text="notesTitle">画布注释</h2>
+          <div class="declaration-actions">
+            <button id="addNote" type="button" data-workshop-text="addNote">＋ 注释</button>
+            <button id="restoreTutorial" type="button" data-workshop-text="restoreTutorial">恢复关卡解说</button>
+            <button id="clearNotes" type="button" data-workshop-text="clearNotes">清空我的笔记</button>
+          </div>
+          <small data-workshop-text="notesHelp">注释可以拖动、折叠和附着到积木。你的笔记会自动保存，重置答案也会保留。</small>
+        </section>
         <section aria-labelledby="symbolsTitle">
           <h2 id="symbolsTitle" data-workshop-text="symbolsTitle">符号</h2>
           <input id="symbolSearch" type="search" placeholder="搜索符号" aria-label="搜索符号" autocomplete="off">

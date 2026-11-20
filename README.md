@@ -290,3 +290,11 @@ Blockly media requests. It starts and closes its own Vite server.
 - Custom workspaces persist locally; ordinary level reloads retain the selected level,
   while mode switches also preserve the unfinished level workspace;
 - Mobile layout has basic adaptation; complex blocks (J) require zooming.
+
+## GitHub Pages
+
+The `CI and GitHub Pages` workflow checks every push and pull request: clean dependency installation, ESLint, all checker regressions, production build, and a Chromium regression against the built application. Successful builds on `main` publish `dist/` through the `github-pages` environment. Other branches and pull requests run checks without deploying.
+
+A repository administrator must enable **Settings → Pages → Build and deployment → Source: GitHub Actions** before the first deployment. Private repositories also need a GitHub plan that supports Pages. The workflow can be started again from Actions with **Run workflow** after enabling Pages. No repository visibility changes or personal access token secrets are required.
+
+Vite uses a relative base (`./`), so generated assets and Blockly media work under the repository subpath as well as at a domain root.

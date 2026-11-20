@@ -9,6 +9,7 @@
     "demo": "node tools/cli/demo.js",
     "lint": "eslint . --max-warnings 0",
     "test": "node test/test.js",
+    "test:all": "node test/test.js && node test/declarations.js && node test/custom.js && node test/rules.js && node test/containers.js && node test/entry.js && node test/contexts.js",
     "test:ui": "node tools/browser/i18n-test.js",
     "build": "vite build",
     "preview": "vite preview"

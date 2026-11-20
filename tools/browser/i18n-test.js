@@ -15,18 +15,19 @@ for (const key of Object.keys(errorMessages.en)) {
 }
 (async () => {
   const root = path.resolve(__dirname, '../..');
+  const basePath = process.env.MLTT_TEST_BASE || '/';
   let server, browser;
   try {
     const { createServer, preview } = await import('vite');
     if (process.env.MLTT_TEST_BUILD === '1') {
-      server = await preview({ root, preview: { host: '127.0.0.1', port: 18744, strictPort: true } });
+      server = await preview({ root, base: basePath, preview: { host: '127.0.0.1', port: 18744, strictPort: true } });
     } else {
       server = await createServer({ root, server: { host: '127.0.0.1', port: 18743, strictPort: true } });
       await server.listen();
     }
     const address = server.httpServer.address();
     assert(address && typeof address !== 'string');
-    const base = `http://127.0.0.1:${address.port}/`;
+    const base = `http://127.0.0.1:${address.port}${basePath}`;
     browser = await chromium.launch(process.env.PLAYWRIGHT_CHANNEL ? { channel: process.env.PLAYWRIGHT_CHANNEL } : {});
     const page = await browser.newPage();
     const errors = [];

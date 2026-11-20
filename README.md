@@ -28,9 +28,9 @@ and `dist/` are generated and stay out of Git.
 Use the header language selector to switch between English and Simplified Chinese.
 The initial language follows the browser; later visits use your saved choice.
 Switching preserves the current blocks (including scratch blocks, variable names,
-bindings and positions), zoom, level, revealed hints and stars without reloading.
+bindings and positions), zoom and level without reloading.
 Level text, block help, Blockly menus and checker errors are localized; mathematical
-notation and variable names stay unchanged. All 23 levels have Chinese text,
+notation and variable names stay unchanged. All 25 levels have Chinese text,
 including the levels not currently exposed in the UI.
 
 ## Construction workshop
@@ -39,38 +39,69 @@ The left block shelf stays open. Every given and answer-slot variable has its ow
 draggable reference, including type variables. Use the header block-library button
 to switch between the level's suggested blocks and the complete library; the
 level palette no longer limits what can be constructed.
+In custom mode, drag a **Problem** card from the left library to the desired canvas position, just like other blocks. There are no duplicate add buttons or automatic recentering. Preset mode keeps **Locate problem** to find its existing frozen container.
 
-The workshop panel displays the level introduction and searchable symbols.
-Clicking a symbol creates a reference on the canvas. Local references must be
-placed inside their binder's scope. Selecting an expression shows type feedback.
-
-Use **Assumption**, **Definition**, or **Axiom** to create a named declaration.
-Attach a type using blocks; definitions also require a body of that type. Checked
-definitions are transparent and can be used as reusable blocks. References use
-declaration IDs, so renaming a declaration preserves its references. Invalid,
-duplicate, circular, or incomplete declarations produce checker errors.
-
-Results that depend on additional assumptions or axioms show those dependencies
-and do not award level stars. Declarations belong to the current level and are
-cleared when switching or resetting; they are not saved across reloads.
+The workshop panel displays the level introduction, an **+ Note** button, and
+selected-expression type feedback. Symbols and local variables are dragged from
+the left shelf; local references must remain inside their binder's scope.
+The panel has no duplicate symbol browser or declaration-creation controls.
+Older shared workspaces containing assumptions, definitions, or axioms remain
+readable and checked; dependency feedback still identifies assumptions used.
 
 Canvas notes are separate from checked expressions. Use **+ Note** or a block's
 context menu to create a plain-text card. Cards can be moved, resized, collapsed,
 and attached to a block so they follow it. Tutorial explanations are read-only
-and can be restored independently. All exposed levels (L0–L16) include bilingual
+and keep their own position-restoration control. All exposed levels (L0–L16) include bilingual
 explanations beside the answer, with larger text and cards for detailed guidance.
 Personal notes are saved per level in this
-browser and survive answer resets and reloads. **Clear my notes** removes only
-personal notes in the current level. Notes do not count toward stars or affect
-type checking. If a referenced scratch block is removed, its note stays on the
+browser and survive answer resets and reloads. Delete each personal note using
+its own × button. Notes do not affect type checking. If a referenced scratch block is removed, its note stays on the
 canvas as a free card.
 
 Run `node test/declarations.js` for declaration checks and
 `node tools/browser/workshop-test.js` for workshop interactions (defaults to Edge;
 set `PLAYWRIGHT_CHANNEL` to choose another installed browser).
 Run `node tools/browser/notes-test.js` to check note editing, persistence,
-attachment, dragging, resizing, and independent clearing.
+attachment, dragging, resizing, and individual deletion.
 Run `node tools/browser/tutorials-test.js` to verify tutorial coverage and placement.
+
+## Custom mode and sharing
+
+Choose **Custom** in the header to open an independent blank canvas with the full
+block library. Add a **Problem** checking container and place any expression,
+judgment, or inference card in its single `TERM` submission input. A judgment
+has real term and type inputs; an inference has real premise, rule, and conclusion
+inputs.
+When several problems exist, select a problem or one of its children before
+checking. Checks report whether the content is valid and any assumptions used.
+
+The custom canvas is saved locally, including positions, declarations, bindings,
+layout options, and notes. Switching back to levels restores the unfinished
+level you left. Right-click a judgment card to choose **Automatic**,
+**Inline**, or **Stacked** layout; automatic layout uses the available width.
+
+The address updates automatically after canvas edits, including block positions,
+fields, layout, locks, and personal notes. An untouched preset uses a short
+`?level=L3` link. Once edited, its address keeps that level parameter and adds a
+versioned, deflate-compressed `#workshop=v1.…` payload containing the current
+canvas. Custom mode uses the compressed payload without a level parameter.
+Copy the address at any time, or use **Share** to copy the latest state. Opening
+the link restores answers, scratch blocks, and notes. Edits replace the current
+address instead of adding browser history entries. Data stays in the URL; there is no upload service.
+The recipient needs access to the same application URL. When clipboard copying
+is unavailable, a dialog displays the link for manual copying. Unsupported,
+damaged, or oversized payloads show an error and preserve the current canvas.
+
+Inference cards now have a detachable `RULE` slot beside the line. **Π-elim**
+applies a function to an argument. **Apply theorem** takes a theorem/function
+expression with two arguments and uses the two premises as those arguments.
+The rule and theorem are checked structurally, not inferred from display labels.
+
+Run `node test/custom.js`, `node test/rules.js`, and
+`node tools/browser/custom-test.js` for custom checks and share round trips.
+Run `node tools/browser/url-sync-test.js` for automatic URL updates and direct-copy restoration.
+Run `node test/entry.js` and `node tools/browser/containers-test.js` for single-entry
+checking, nested judgments, and preset/custom container consistency.
 
 Translations use the small `src/i18n/index.js` service and dictionaries under
 `src/i18n/locales/`. The checker keeps its English
@@ -79,9 +110,9 @@ Translations use the small `src/i18n/index.js` service and dictionaries under
 Command-line demo / regression:
 
 ```bash
-npm run demo       # print all 23 levels and reference solutions
+npm run demo       # print all 25 levels and reference solutions
 npm run lint       # at most 500 code lines per JavaScript file; ignores blank/comment-only lines
-npm test           # 58 checker + scope tests
+npm test           # 60 checker + scope tests
 npm run test:ui     # starts its own development server and browser regression
 ```
 
@@ -99,10 +130,15 @@ vite.config.mjs   development/build settings and Blockly media handling
 src/
   main.js         npm imports and application initialization
   core/mltt.js    pure-JS MLTT checker, evaluation and printing
-  levels/index.js 23 levels and reference solutions
+  levels/index.js 25 levels and reference solutions
   blockly/blocks.js  Blockly definitions and lexical binding
-  ui/app.js       workspace, checking, hints and progress
-  ui/style.css    application styles
+  ui/
+    app.js        application shell and level navigation
+    style.css     shared application styles
+    workspace/    block library, scope feedback and workspace tools
+    problems/     preset construction, custom mode and answer switching
+    notes/        canvas notes and both sets of lesson explanations
+    sharing/      compressed URLs and session sharing
   i18n/index.js   language selection and message formatting
   i18n/locales/   block, level and checker translations
 tools/
@@ -120,27 +156,47 @@ excluded. Split files by responsibility when they reach this limit.
 
 ## Implemented blocks
 
-- Top level: `answer |-` (generated automatically for each level, cannot be deleted; checking reads only this block, so all other blocks are scratch)
+- Top level: checking container with a name and one submission input;
+  preset levels prefill and lock parts of the content, custom content is editable.
 - Types: `Pi` `Sigma` `Id` `Nat` `Bool` `0` (empty) `1` (unit) `Type 0/1`
 - Terms: `lambda` `variable` `application` `pair` `0/suc` `true/false/star` `refl` `let` `annotation` `hole` `given`
 - Eliminators: `natrec` `unitrec` `sigma_ind` `J` `if` `absurd`
 - The product/Sigma levels derive `fst`/`snd` with `sigma_ind`; primitive `fst`/`snd` blocks are not offered in the toolbox.
 - Lemma: `add` (transparent definition, delta-reduction)
 
-## Answer slot
+## Checking container
 
-When a level loads, an answer block is generated in the center of the canvas; its `TERM` slot is where you submit. The block itself is displayed as the sequent `knowns |- [answer] : goal` (universe knowns such as `A : Type` are hidden), so the problem and the answer slot are one block. Levels with `answerBinders` also show one or more interactive local variables before the `|-` (for example, L3 has `f` and `x`, and L4 also has `y`). They behave like lambda binders and share the variable block's color: hovering pops up the corresponding variable block through `@mit-app-inventor/blockly-block-lexical-variables`'s flydown, and you can drag it into the slot; clicking a variable name renames it. Variable blocks in the slot bind to them automatically through LBM:
+Both modes use `tt_problem`: a `NAME` field and one `TERM` submission input.
+The shell has no separate requirement or given-context section. Its content can
+be a plain expression, a `tt_judgment`, or a `tt_rule_app` inference tree. Other
+canvas blocks are scratch work and do not count as submissions.
 
-- cannot be deleted, can be moved; if undo or an accidental delete removes it, pressing Check restores it;
-- `doCheck` only reads the term from its `TERM` input; other top-level blocks on the canvas no longer trigger "only one top-level term" errors and can be used freely as scratch;
-- if the slot is empty, it tells you to drag a term in rather than failing silently;
-- if multiple answer slots are copied, only the first one is checked; the rest get a warning and turn gray.
+A judgment contains actual `TERM` and `TYPE` inputs. Checking verifies the term
+has the stated type. A rule contains an ordered premise list (`F`, `A`, then `P2`, `P3`, ...), a `RULE`, and a `RESULT`;
+checking verifies its premises and the conclusion, including that the conclusion
+agrees with the selected rule after normalization. Empty inputs remain visible
+puzzle sockets and report incomplete work; display text is never proof evidence.
 
-Some levels run in **type-inference mode**: the answer slot shows a fixed term (for example `f x :`) and the hole expects that term's type. The context entries are local variables, so the type is submitted as a variable block - for example `B`.
+Preset levels fill and lock parts of this same content. A term-construction task
+locks the judgment's type and leaves its term empty. A type-inference task locks
+the expression and leaves its type empty. Inference examples leave the rule and
+conclusion term for the player to construct. Judgments and rules accept a `CONTEXT`: an ordered `tt_context` of `tt_binding` cards, each with an editable name and type slot. Later declarations and the body can use earlier names. Local references retain stable lexical IDs through locale changes and sharing.
+Preset goals and required constructors are represented by frozen cards, including the `unitrec` skeleton in L10. The checker reads the cards themselves in both modes; preset containers have no hidden variables or conditions.
 
-Levels can also set `requireBlock`; `checkBlocks` rejects an otherwise well-typed answer that does not contain the required block (L10 uses this to force the unit computation rule).
+Custom problems allow any supported content. Right-click a block to freeze or
+unfreeze it when authoring a puzzle; freezing survives saving and sharing.
+A frozen block cannot be edited, detached, replaced, or deleted through its parent.
+Freezing a block leaves its children independently editable, so authors can freeze
+given content while keeping nested answer slots available. Plain expressions are inferred;
+judgments supply an expected type for constructions such as lambdas and pairs.
+When multiple problems exist, select the one to check. Older `tt_answer` and
+requirement/submission workspaces migrate to the single-entry representation.
 
-`src/core/mltt.js`'s `elabBlock` treats `tt_answer` as a transparent container (`tt_goal` is kept as an old name), so pure Node tests can also wrap block JSON directly.
+Every preset provides **View answer** below its description. It temporarily fills the main canvas with a complete checked answer. The button changes to **Back to work**, which restores the player’s exact blocks, notes, and view. Answer blocks use the existing inspection and editing tools. Answer-mode URLs also retain the original work, so reloading still lets the player return to it.
+
+Problem guides explain notation, available conditions, and the goal. Answer mode switches the same tutorial card to a solution walkthrough, explaining the construction and why each step is valid. Personal notes remain separate.
+
+Run `node tools/browser/answers-test.js` to verify all 19 answer previews.
 
 ## Lexical binding module (LBM)
 
@@ -158,7 +214,7 @@ Six layers of defense:
 2. The dropdown filters by real scope;
 3. After moves/creates/deletes, references are revalidated; stale variables get a warning icon and turn gray;
 4. Elaboration produces de Bruijn indices, and a missing binder reports `E_SCOPE` (no silent rebinding);
-5. When paste invalidates a uid, it falls back to the nearest same-named binder by the saved name (intentional lexical-scope behavior);
+5. Copying a whole subtree remaps references only to binders created in that same copy; moving a reference outside its scope remains an error;
 6. New binders avoid outer variables with the same name by default (if `x` already exists outside, a new lambda is called `y`); manually renaming to a duplicate is rejected.
 
 ## Type checking
@@ -173,7 +229,22 @@ Six layers of defense:
 
 ## Levels
 
-> Currently the UI exposes only L0-L16 (`levels.slice(0, 17)` in `src/ui/app.js`); the remaining level data is still there and can be re-enabled.
+> The UI exposes L0-L16 and the inference-rule examples R0/R1. L17-L22 remain in the data and can be re-enabled.
+
+R0 (“Your first inference”) starts with an inference card inside the submission
+entry. Fill its premise slots with `f` and `x`, choose `Π-elim` beside the line,
+and construct `f x` in the conclusion judgment whose target type `B` is locked.
+R1 uses explicit judgment cards as premises: fill the first with `f` and the
+second with `x`; the rule and conclusion are filled in the same way. The shared context is constructed above the rule from public declaration cards. Every blank is a connectable input.
+
+Premises and conclusions accept terms or nested judgments. Rules can be nested;
+they elaborate to ordinary MLTT applications, so type, scope, and normalization
+checks all use the same checker. The older duplicate inference block name remains
+readable in saved workspaces; only the unified card appears in the library.
+
+Right-click a premise list or condition list to add, remove, or reorder entries. Removed filled entries return to the canvas. Lists support zero or more entries (up to 64); Π-elim requires exactly two premises, while applying a theorem accepts as many arguments as its type permits.
+
+Run `node test/contexts.js`, `node tools/browser/context-freeze-test.js`, `node tools/browser/parity-test.js`, and `node tools/browser/context-migration-test.js` for contexts, freezing, all 19 preset/custom equivalence checks, and old saves.
 
 | # | Goal | New blocks |
 |---|---|---|
@@ -201,11 +272,11 @@ Six layers of defense:
 | 21 | `Id A x z` (transitivity) | two Js |
 | 22 | `not not not P -> not P` (triple negation) | negation as `P -> 0` |
 
-Stars: <= reference block count with no hints = 3 stars; <= reference + 2 with <=1 hint = 2 stars; otherwise 1 star.
+Levels provide direct checking and navigation, with no star ratings or hint controls.
 
 ## Tests
 
-`node test/test.js`: 23 level reference solutions, 9 error paths, 13 scope/elaboration cases (including answer slots and required-block checks), 7 NbE cases, 4 triple-negation cases for L22, and 2 printing cases - 58 items total.
+`node test/test.js`: 25 level reference solutions, 9 error paths, 13 scope/elaboration cases (including answer slots and required-block checks), 7 NbE cases, 4 triple-negation cases for L22, and 2 printing cases - 60 items total.
 
 `npm run test:ui` verifies language switching, unfinished/completed workspace
 preservation, variable binding and hover flydowns, progress persistence and
@@ -216,5 +287,6 @@ Blockly media requests. It starts and closes its own Vite server.
 - No cumulativity, implicit arguments, or metavariable solving;
 - The type of J's motive is determined by the rule and cannot be annotated manually;
 - Copy/paste relies on name fallback, so extreme same-name cases may rebind;
-- The workspace is not persisted; only stars and level progress are stored in localStorage;
+- Custom workspaces persist locally; ordinary level reloads retain the selected level,
+  while mode switches also preserve the unfinished level workspace;
 - Mobile layout has basic adaptation; complex blocks (J) require zooming.

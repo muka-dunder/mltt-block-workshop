@@ -38,13 +38,34 @@
     return null;
   }
 
+  function contextDeclarations(context, before = Infinity) {
+    if (!context || context.type !== 'tt_context') return [];
+    const out = [];
+    for (let i = 0; i < Math.min(context.ttItemCount || 0, before); i++) {
+      const block = context.getInputTargetBlock('ITEM' + i);
+      if (block?.type !== 'tt_binding') continue;
+      const uid = block.ttBindingUid || 'b' + block.id + ':decl';
+      out.push({ uid, name: block.getFieldValue('NAME') || 'x', block, colour: binderColour(uid) });
+    }
+    return out;
+  }
+
   /** Visible binders from inner to outer: {uid, name, block, colour} */
   function bindersInScope(block) {
     const out = [];
     let child = block;
     for (let p = block.getParent(); p; child = p, p = p.getParent()) {
       const inputName = inputContaining(p, child);
-      if (!inputName || !p.ttBinds) continue;
+      if (!inputName) continue;
+      let context = [];
+      if (p.type === 'tt_context') {
+        const match = /^ITEM(\d+)$/.exec(inputName);
+        if (match) context = contextDeclarations(p, Number(match[1]));
+      } else if (['tt_judgment', 'tt_rule_app', 'tt_rule_judgments'].includes(p.type) && inputName !== 'CONTEXT') {
+        context = contextDeclarations(p.getInputTargetBlock('CONTEXT'));
+      }
+      for (const binding of context.reverse()) if (!out.some(existing => existing.uid === binding.uid)) out.push(binding);
+      if (!p.ttBinds) continue;
       const uids = p.ttBinds[inputName];
       if (!uids || !uids.length) continue;
       // Multiple binders in one input (J's y,q / natrec's k,ih): later ones are more local.
@@ -52,11 +73,12 @@
         const uid = uids[i];
         const fname = p.ttNameFields && p.ttNameFields[uid];
         const name = fname ? (p.getFieldValue(fname) || 'x') : 'x';
-        out.push({ uid, name, block: p, colour: p.ttColour || binderColour(uid) });
+        if (!out.some(binding => binding.uid === uid)) out.push({ uid, name, block: p, colour: p.ttColour || binderColour(uid) });
       }
     }
     if (child.type === 'tt_declare' && block !== child) {
-      const answer = block.workspace.getBlocksByType('tt_answer', false)[0];
+      const answer = block.workspace.getBlocksByType('tt_problem', false)[0] ||
+        block.workspace.getBlocksByType('tt_answer', false)[0];
       if (answer) {
         for (const uid of [...(answer.ttBinds && answer.ttBinds.TERM || [])].reverse()) {
           const field = answer.ttNameFields[uid];
@@ -193,7 +215,7 @@
   // Global exports
   global.LBM = {
     bindersInScope, findBinder, nextBinderName, encodeRef, decodeRef,
-    binderColour, inputContaining, esc
+    binderColour, inputContaining, contextDeclarations, esc
   };
   global.BlockBinding = { declareBinder, nameField };
 })(typeof window !== 'undefined' ? window : globalThis);

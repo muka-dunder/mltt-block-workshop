@@ -1,6 +1,6 @@
 /* Public MLTT API shared by Node and the browser. */
 (function (global, factory) {
-  const isNode = typeof module === 'object' && module.exports;
+  const isNode = typeof window === 'undefined' && typeof module === 'object' && module.exports;
   const runtime = (isNode ? require('./runtime.js') : global.MLTTCreateRuntime)();
   const printing = (isNode ? require('./printing.js') : global.MLTTCreatePrinting)(runtime);
   const checking = (isNode ? require('./checking.js') : global.MLTTCreateChecking)(runtime, printing);

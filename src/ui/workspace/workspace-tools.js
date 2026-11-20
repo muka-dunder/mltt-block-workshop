@@ -24,6 +24,9 @@ export function makeTheme() {
 // ---------- Blocks -> JSON ----------
 export function toJson(b) {
   const j = { type: b.type, id: b.id, fields: {}, inputs: {} };
+  if (b.ttEntryVersion === 2) j.entryVersion = 2;
+  if (['tt_rule_app', 'tt_rule_judgments'].includes(b.type)) j.premiseCount = b.ttPremiseCount ?? b.ttItemCount ?? 2;
+  if (b.type === 'tt_context') j.contextCount = b.ttItemCount ?? 0;
   if (b.ttBinds) { j.binds = b.ttBinds; j.names = {}; }
   for (const inp of b.inputList) {
     for (const f of inp.fieldRow) if (f.name) j.fields[f.name] = f.getValue();
@@ -44,11 +47,25 @@ export function toJson(b) {
 }
 export function createVariableTools({ getWorkspace, getBusy, setBusy }) {
   const t = window.I18N.t;
+  function remapCreatedBindings(ids = []) {
+    const created = new Set(ids);
+    for (const id of ids) {
+      const block = getWorkspace().getBlockById(id);
+      if (block?.type !== 'tt_var') continue;
+      const reference = window.LBM.decodeRef(block.getFieldValue('REF'));
+      const bindings = window.LBM.bindersInScope(block);
+      if (!reference.uid || bindings.some(binding => binding.uid === reference.uid)) continue;
+      // Copy/paste regenerates block IDs. Only references and binders created in
+      // this same subtree may be rebound; ordinary scope escapes remain errors.
+      const binding = bindings.find(binding => binding.name === reference.name && created.has(binding.block.id));
+      if (binding) block.setFieldValue(window.LBM.encodeRef(binding.uid, binding.name), 'REF');
+    }
+  }
   // ---------- Local variable validation ----------
   /** Binders avoid outer names by default; rename automatically on conflict. */
   function refreshBinderNames() {
     for (const b of getWorkspace().getAllBlocks(false)) {
-      if (!b.ttBinds || !b.ttNameFields) continue;
+      if (!b.ttBinds || !b.ttNameFields || b.ttContextDisplay || window.BlockFreeze.isFrozen(b)) continue;
       const outer = window.LBM.bindersInScope(b);
       if (!outer.length) continue;
       const used = new Set(outer.map((o) => o.name));
@@ -110,5 +127,5 @@ export function createVariableTools({ getWorkspace, getBusy, setBusy }) {
       setTimeout(() => { try { getWorkspace().highlightBlock(null); } catch (e) {} }, 1200);
     }
   }
-  return { refreshVars, highlightBinderFor };
+  return { refreshVars, highlightBinderFor, remapCreatedBindings };
 }

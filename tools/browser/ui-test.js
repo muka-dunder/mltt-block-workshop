@@ -15,7 +15,7 @@ const path = require('path');
 
   const info = await page.evaluate(() => {
     const ws = Blockly.common.getMainWorkspace();
-    const goal = ws.getTopBlocks(false).find((b) => b.type === 'tt_answer');
+    const goal = ws.getTopBlocks(false).find((b) => b.type === 'tt_problem');
     return {
       blocks: ws.getAllBlocks(false).length,
       goal: !!goal,
@@ -29,7 +29,7 @@ const path = require('path');
   // Build lambda x. x
   const built = await page.evaluate(() => {
     const ws = Blockly.common.getMainWorkspace();
-    const goal = ws.getTopBlocks(false).find((b) => b.type === 'tt_answer');
+    const goal = ws.getTopBlocks(false).find((b) => b.type === 'tt_problem');
     const lam = ws.newBlock('tt_lam');
     lam.initSvg(); lam.render(); lam.moveBy(120, 120);
     goal.getInput('TERM').connection.connect(lam.outputConnection);

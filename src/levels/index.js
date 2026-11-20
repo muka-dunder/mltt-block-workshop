@@ -93,11 +93,13 @@
   define('add', ADD_TY, ADD_BODY);
 
   const syntax = { v, Uo, pi, sigma, lam, app, pair, fst, snd, id, natrec, Jop, unitrec, sigind, absurd, ref, NATo, REFLo, ZEROo, EMPTYo, UNITo, STARo, nat, not };
-  const foundations = typeof module === 'object' && module.exports
+  const foundations = typeof window === 'undefined' && typeof module === 'object' && module.exports
     ? require('./foundations.js') : globalThis.MLTTLevelFoundations;
-  const advanced = typeof module === 'object' && module.exports
+  const advanced = typeof window === 'undefined' && typeof module === 'object' && module.exports
     ? require('./advanced.js') : globalThis.MLTTLevelAdvanced;
-  const raw = [...foundations(syntax), ...advanced(syntax)];
+  const proofs = typeof window === 'undefined' && typeof module === 'object' && module.exports
+    ? require('./proofs.js') : globalThis.MLTTLevelProofs;
+  const raw = [...foundations(syntax), ...advanced(syntax), ...proofs(syntax)];
 
   // Expand: close each given ty in the context of all preceding names.
   // ---------- Reference solution block counts (used for stars) ----------
@@ -148,7 +150,7 @@
       inferTerm: lv.inferTermRaw ? close(lv.inferTermRaw, env) : null,
       goal: close(lv.goalRaw, env),
       solution: close(lv.solutionRaw, env),
-      par: countOpen(lv.solutionRaw)
+      par: countOpen(lv.solutionRaw) + (lv.parExtra || 0)
     });
   });
 

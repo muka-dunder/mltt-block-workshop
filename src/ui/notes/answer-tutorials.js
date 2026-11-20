@@ -1,12 +1,12 @@
-// Explanations for the levels currently available in the workshop.
-export const TUTORIALS = {
+// Worked reasoning shown while a reference answer is on the canvas.
+export const ANSWER_TUTORIALS = {
   L0: {
-    'zh-CN': `读题时，冒号表示“具有这个类型”。x : A 告诉你，已经有一个叫 x 的项，它的类型是 A。⊢ 后面的空槽要放答案，右侧的 : A 要求答案也具有类型 A。
+    'zh-CN': `读题时，冒号表示“具有这个类型”。x : A 告诉你，已经有一个叫 x 的项，它的类型是 A。题目只有一个提交入口，里面的判断卡要求你构造一个类型为 A 的项。
 
 从左侧的已知符号里拖出 x，把它接到答案槽里，再点击“检查”。这关直接使用题目给出的条件就够了，无须创建新假设。
 
 A 是类型的名字，x 是这个类型里的一个项，两者用途不同。引用 x 会保留它与题目中声明的关联；以后同样可以通过引用来使用函数、类型和局部变量。`,
-    en: `A colon means “has type”. The declaration x : A gives you a term named x whose type is A. The slot after ⊢ holds your answer; the : A on its right requires an answer of type A.
+    en: `A colon means “has type”. The declaration x : A gives you a term named x whose type is A. The judgment fixes the type A and asks you to fill its term position.
 
 Drag x from the given symbols on the left into the answer slot, then press Check. The supplied context already contains everything you need, so no new assumption is needed.
 
@@ -73,12 +73,12 @@ Put an application block in the answer slot, with f as the function and x as the
 This is partial application: supplying some arguments leaves a function for the remaining inputs. Arrows group to the right, so A → B → C means A → (B → C). Thus f x is a complete function value and can be submitted as a complete answer.`
   },
   L6: {
-    'zh-CN': `本关换了填写内容：题目已经固定了项 f x，空槽位于它后面的冒号之后，要你写出这个项的类型。先看已知条件 f : A → B、x : A。
+    'zh-CN': `本关的判断卡已经给出了项 f x，冒号右侧的空槽要填写这个项的类型。先看已知条件 f : A → B、x : A。
 
-f 收到 A 类型的参数 x，返回值的类型就是 B。从左侧找到符号 B，直接把它放进类型空槽，再点击“检查”。这关提交的是 B 这个类型。
+f 收到 A 类型的参数 x，返回值的类型就是 B。从左侧找到符号 B，直接把它放进类型空槽，再点击“检查”。因此答案里的类型槽填入 B，给定的项位置保持为 f x。
 
 类型自身也能通过符号积木来引用。读题时先看空槽的位置：平常是在构造一个给定类型的项，这里则是在说明已有的项具有什么类型。目标中的 f x 已经给好，空槽中再搭一次 f x 会填错内容。`,
-    en: `The slot has a different role in this level. The term f x is already fixed, and the hole after its colon asks for that term's type. Start with the supplied declarations f : A → B and x : A.
+    en: `The judgment already supplies the term f x; the empty TYPE slot after the colon must describe that term's type. Start with the supplied declarations f : A → B and x : A.
 
 Applying f to its A argument x produces a result of type B. Find the symbol B on the left, place it directly in the type slot, and press Check. Your submission is the type B.
 
@@ -125,12 +125,12 @@ The type of c is written C ★, while the goal is C u. Since u is still a variab
 
 把 unitrec 接到答案槽：u 槽放 ★，C 槽放类型族 C，c 槽放 c，构成 unitrec ★ C c。这里把上一关的未知单元值 u，换成了明确的 ★。
 
-计算规则规定 unitrec ★ C c ≡ c，所以这个表达式会归约成基本情况 c。符号 ≡ 表示计算后定义相等。单独提交 c 虽然具有目标类型，本关仍会提示你使用 unitrec，才能把这条计算规则展示出来。`,
+计算规则规定 unitrec ★ C c ≡ c，所以这个表达式会归约成基本情况 c。符号 ≡ 表示计算后定义相等。题目给定的 unitrec 骨架被冻结；答案保留这层构造并填好三个输入，直接展示这条计算规则。`,
     en: `This level examines the computation of unit elimination. You have c : C ★, and the goal is also C ★. The level specifically requires unitrec to demonstrate how the eliminator computes on the canonical element ★.
 
 Put unitrec in the answer slot: use ★ in the u slot, the family C in the C slot, and c in the c slot. The result is unitrec ★ C c. The unknown u from the previous level has become the explicit element ★.
 
-The computation rule is unitrec ★ C c ≡ c, so the expression reduces to its base case. The symbol ≡ means definitional equality by computation. Although c alone has the goal type, this level still requires the unitrec block to demonstrate that rule.`
+The computation rule is unitrec ★ C c ≡ c, so the expression reduces to its base case. The symbol ≡ means definitional equality by computation. The problem freezes a unitrec skeleton. The answer completes its three inputs and retains that construction to demonstrate the computation rule.`
   },
   L11: {
     'zh-CN': `0 表示空类型，它没有构造元素的引入规则。题目把 e : 0 作为一个已有假设交给你，目标是任意类型 A；现在要学习怎样使用这个特殊的假设。
@@ -203,5 +203,29 @@ The Id block constructs the type of an equality statement; refl constructs a ref
 Drag out a universe block, set its level to 0, and put it in the answer slot. The checked relationship is Type 0 : Type 1. The block defaults to level 0, so confirm the number and submit it.
 
 Universes continue upward: Type 1 has type Type 2, and so on. Keep track of which level's term you are building. Changing the block's level to 1 changes its type to Type 2. Universes let expressions discuss and construct types themselves.`
+  },
+  R0: {
+    'zh-CN': `共同条件先声明 A、B 是类型，以及 f : A → B、x : A。它们提供这一步可以引用的名字；横线上方的两个前提分别选取函数 f 和参数 x。
+
+规则槽填入 Π-elim，也就是函数应用的消去规则。f 的输入类型是 A，x 恰好具有类型 A，因此这两个前提能够组合。横线下方构造应用项 f x，并在结论判断中确认它具有类型 B。
+
+查看答案时，可以沿着“函数的输入要求—参数的实际类型—应用后的返回类型”读完整张卡。前提数量、参数顺序、规则和结论都要吻合；横线表达推理的依据，Γ 记录共享声明。结论中 Γ 旁的可选条件槽留空，表示继承顶部条件，解答已经完整。`,
+    en: `The shared context declares A and B as types, f : A → B, and x : A. These declarations make the names available. The two premises select the function f and its argument x.
+
+The rule slot contains Π-elim, the elimination rule for function application. The input type of f is A, and x has exactly that type, so the premises combine. The conclusion constructs f x and checks that its type is B.
+
+Read the diagram by following the function's required input type, the argument's actual type, and the result type after application. The premise count, order, rule, and conclusion agree. The bar records the inference step; Γ records its shared declarations. The optional context slot beside Γ in the conclusion stays empty to inherit the outer context; this is a complete answer.`
+  },
+  R1: {
+    'zh-CN': `这份答案把前提也明确写成判断：第一张是 Γ ⊢ f : A → B，第二张是 Γ ⊢ x : A。它们都沿用外层共同条件，所以内部的 Γ 表示同一组可用声明，而没有重新增加假设。
+
+Π-elim 将这两个已检查的前提组合起来。结论项是 f x，结论类型是 B。声明 f : A → B 提供一个函数，前提判断确认它符合当前推理需要，横线则说明如何从前提得到结论。
+
+整张推导卡仍然可以放进更大的构造中：它产生的项与普通应用 f x 相同。检查器会核对判断类型和结论的定义相等。内层 Γ 旁的可选条件槽留空，表示共用顶部声明，无需再填一次。`,
+    en: `The answer writes the premises as explicit judgments: Γ ⊢ f : A → B and Γ ⊢ x : A. Both inherit the outer shared context. Their Γ refers to the same available declarations and introduces no additional hypotheses.
+
+Π-elim combines these checked premises. The conclusion term is f x, and its type is B. The declaration supplies the function, the premise judgment checks its role in this step, and the bar records how the premises justify the conclusion.
+
+This inference card can itself occur inside a larger construction: it produces the same term as the ordinary application f x. Checking verifies both the stated types and definitional equality of the conclusion with the rule's result. Empty optional context slots beside the inner Γ inherit the top declarations and need no additional filling.`
   }
 };

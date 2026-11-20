@@ -9,6 +9,9 @@
     NAT, ZERO, SUC, BOOL, TRUE, FALSE, EMPTY, UNIT, STAR, REFL, vNe, evalTm, envOf, CheckError, fail } = runtime;
   const { infer, check, sortOf, buildCtx, checkLevel } = checking;
   const { showVal } = printing;
+  const entryChecking = (typeof window === 'undefined' && typeof module === 'object' && module.exports
+    ? require('./entry-checking.js') : globalThis.MLTTCreateEntryChecking)(runtime, printing, checking, elabBlock);
+  const { validateEntry, checkExplicitEntry, premiseNames } = entryChecking;
 
   // ---------------- Block JSON -> core terms ----------------
   // j = {type, id, fields:{}, binds:{input:[uid]}, names:{uid:name}, inputs:{input:j}}
@@ -17,6 +20,16 @@
     opts = opts || {};
     if (!j) fail('E_EMPTY', 'No block here yet', null, null, 'noBlock');
     const src = j.id;
+    if (opts.contextual && j.inputs?.CONTEXT) {
+      const aliases = new Map(opts.bindingAliases || []);
+      for (const binding of entryChecking.contextEntries(j.inputs.CONTEXT)) {
+        const name = String(binding.fields?.NAME || '').trim();
+        const target = [...scope].reverse().find(entry => entry.name === name);
+        if (!target) fail('E_SCOPE', 'A context cannot escape its card', { src: binding.id }, null, 'contextEscapes');
+        aliases.set('b' + binding.id + ':decl', target.uid);
+      }
+      opts = { ...opts, bindingAliases: aliases };
+    }
     const inp = (n) => j.inputs && j.inputs[n] ? j.inputs[n] : null;
     const el = (n, sc) => {
       const c = inp(n);
@@ -26,6 +39,20 @@
     const binds = j.binds || {};
     const nameOf = (uid) => (j.names && j.names[uid]) || 'x';
     const push = (uid) => scope.concat([{ uid, name: nameOf(uid) }]);
+    const applyRule = () => {
+      const rule = inp('RULE');
+      if (!rule) fail('E_EMPTY', 'Choose an inference rule', { src }, null, 'ruleMissing');
+      const names = premiseNames(j);
+      if (rule.type === 'tt_rule_pi_elim') {
+        if (names.length !== 2) fail('E_REQUIRE', 'Π-elim requires two premises', { src }, null, 'premiseCount', { expected: 2, actual: names.length });
+        return App(el('F'), el('A'), src);
+      }
+      if (rule.type === 'tt_rule_theorem') {
+        const theorem = elabBlock(rule.inputs && rule.inputs.THEOREM, scope, opts);
+        return names.reduce((term, name) => App(term, el(name), src), theorem);
+      }
+      fail('E_REQUIRE', 'Choose a supported inference-rule block', { src }, null, 'ruleInvalid');
+    };
 
     switch (j.type) {
       case 'tt_symbol': {
@@ -37,11 +64,12 @@
       case 'tt_var': {
         const raw = (j.fields && j.fields.REF) || '';
         const bar = raw.indexOf('\u241F');
-        const ref = bar < 0 ? raw : raw.slice(0, bar);
+        const originalRef = bar < 0 ? raw : raw.slice(0, bar);
+        const ref = opts.bindingAliases?.get(originalRef) || originalRef;
         const nm = bar < 0 ? ((j.fields && j.fields.NAME) || '') : raw.slice(bar + 1);
         let pos = -1;
         for (let i = scope.length - 1; i >= 0; i--) if (scope[i].uid === ref) { pos = i; break; }
-        if (pos < 0) for (let i = scope.length - 1; i >= 0; i--) if (scope[i].name === nm) { pos = i; break; }
+        if (pos < 0 && (!opts.strictScope || !ref)) for (let i = scope.length - 1; i >= 0; i--) if (scope[i].name === nm) { pos = i; break; }
         if (pos < 0) fail('E_SCOPE', 'Variable "' + (nm || '?') + '" is not in scope', { src }, null, 'variableScope', { name: nm || '?' });
         return Var(scope.length - 1 - pos, src);
       }
@@ -63,6 +91,7 @@
       case 'tt_refl': return Object.assign({}, REFL, { src });
       case 'tt_hole': return Hole(j.id, src);
       case 'tt_lemma': return Ref((j.fields && j.fields.NAME) || '', src);
+      case 'tt_problem':
       case 'tt_answer':
       case 'tt_goal': {
         // The answer slot declares its own local variable (LBM); TERM is in its scope.
@@ -74,9 +103,12 @@
         return elabBlock(inp('TERM'), sc, opts);
       }
       case 'tt_annot': return Annot(el('TERM'), el('TYPE'), src);
+      case 'tt_judgment': return inp('TYPE') ? Annot(el('TERM'), el('TYPE'), src) : el('TERM');
+      case 'tt_rule_judgments': return applyRule();
       case 'tt_suc': return Object.assign(SUC(el('N')), { src });
       case 'tt_fst': return Fst(el('P'), src);
       case 'tt_snd': return Snd(el('P'), src);
+      case 'tt_rule_app': return applyRule();
       case 'tt_app': return App(el('F'), el('A'), src);
       case 'tt_pair': return Pair(el('A'), el('B'), src);
       case 'tt_if': return If(el('B'), el('X'), el('Y'), src);
@@ -141,7 +173,7 @@
   // Wrap a block tree as an entry point that checks the goal in an empty context.
   function hasBlockType(j, type) {
     if (!j) return false;
-    if (j.type === type) return true;
+    if (j.type === type || (type === 'tt_rule_app' && j.type === 'tt_rule_judgments')) return true;
     const inputs = j.inputs || {};
     for (const key of Object.keys(inputs)) {
       if (hasBlockType(inputs[key], type)) return true;
@@ -150,6 +182,7 @@
   }
 
   function checkBlocks(level, blockJson) {
+    if (blockJson?.type === 'tt_problem' && !blockJson.inputs?.TYPE) return checkWorkshop(level, blockJson, []);
     let tm;
     try {
       const hasAnswerBinder = !!(level.answerBinders && level.answerBinders.length) || !!level.answerBinder;
@@ -175,9 +208,11 @@
   function checkWorkshop(level, blockJson, declarationBlocks, inspection) {
     declarationBlocks = declarationBlocks || [];
     const declarations = [], symbols = new Map(), dependencies = new Map();
+    const canonical = blockJson?.entryVersion === 2 || hasBlockType(blockJson, 'tt_context') ||
+      (level.entry && blockJson?.type === 'tt_problem' && !Object.hasOwn(blockJson.inputs || {}, 'TYPE'));
     try {
-      const ctx = buildCtx(level.givens);
-      const binders = level.answerBinders || (level.answerBinder ? [level.answerBinder] : []);
+      const ctx = canonical ? [] : buildCtx(level.givens);
+      const binders = canonical ? [] : level.answerBinders || (level.answerBinder ? [level.answerBinder] : []);
       for (const b of binders) {
         sortOf(ctx, b.ty);
         ctx.push({ name: b.name, ty: evalTm(envOf(ctx), b.ty) });
@@ -187,7 +222,7 @@
         uid: answerUids[i],
         name: blockJson && blockJson.names && blockJson.names[answerUids[i]] || b.name,
       }));
-      const opts = { nGivens: level.givens.length, symbols };
+      const opts = { nGivens: canonical ? 0 : level.givens.length, symbols };
       const names = new Set(ctx.map(c => c.name));
       for (const entry of answerScope) names.add(entry.name);
       const byId = new Map();
@@ -239,7 +274,17 @@
         visiting.delete(id);
       }
       for (const id of byId.keys()) resolve(id);
+      if (Object.prototype.hasOwnProperty.call(level, 'customGoalJson')) {
+        const goal = elabBlock(level.customGoalJson, answerScope, opts);
+        sortOf(ctx, goal);
+        level = { ...level, goal };
+      }
+      if (Object.prototype.hasOwnProperty.call(level, 'customInferJson')) {
+        level = { ...level, inferTerm: elabBlock(level.customInferJson, answerScope, opts) };
+      }
       const used = references(blockJson);
+      if (level.customGoalJson) references(level.customGoalJson, used);
+      if (level.customInferJson) references(level.customInferJson, used);
       function includeDependencies(id) {
         for (const ref of dependencies.get(id) || []) {
           if (!used.has(ref)) { used.add(ref); includeDependencies(ref); }
@@ -247,8 +292,28 @@
       }
       for (const id of used) includeDependencies(id);
       const assumptions = declarations.filter(d => d.kind !== 'definition' && used.has(d.id));
-      const tm = elabBlock(blockJson, [], { ...opts, answerBinder: !!binders.length });
-      const result = checkLevel(level, tm);
+      if (canonical) return Object.assign(checkExplicitEntry(blockJson, opts, inspection), { declarations, assumptions });
+      const entry = blockJson?.inputs?.TERM;
+      const strictEntry = blockJson?.type === 'tt_problem' && !blockJson.inputs?.TYPE;
+      let tm = elabBlock(blockJson, [], { ...opts, answerBinder: !!binders.length });
+      if (strictEntry) validateEntry(entry, ctx, answerScope, opts, level.entry ? undefined : level.inferTerm ? undefined : evalTm(envOf(ctx), level.goal));
+      if (strictEntry && level.inferTerm && entry?.type === 'tt_judgment') {
+        tm = elabBlock(entry.inputs.TYPE, answerScope, opts);
+      }
+      const result = level.entry
+        ? { ok: true, ctx, inferred: infer(ctx, tm) }
+        : checkLevel(level, tm);
+      if (result.ok && level.requireDerivation) {
+        let submitted = blockJson.inputs && blockJson.inputs.TERM;
+        while (submitted && submitted.type === 'tt_judgment') submitted = submitted.inputs && submitted.inputs.TERM;
+        if (!submitted || !['tt_rule_app', 'tt_rule_judgments'].includes(submitted.type)) {
+          result.ok = false;
+          result.error = new CheckError('E_REQUIRE', 'Submit an inference card', null, null, 'derivationRequired');
+        } else if (level.requireRule && submitted.inputs?.RULE?.type !== level.requireRule) {
+          result.ok = false;
+          result.error = new CheckError('E_REQUIRE', 'Use the required inference rule', null, null, 'requiredBlock', { name: 'Π-elim' });
+        }
+      }
       if (result.ok && level.requireBlock && !hasBlockType(blockJson, level.requireBlock)) {
         result.ok = false;
         result.error = new CheckError('E_REQUIRE', 'This level requires the ' + (level.requireBlockName || level.requireBlock) + ' block', null, null, 'requiredBlock', { name: level.requireBlockName || level.requireBlock });
@@ -263,14 +328,14 @@
             if (!j) return;
             if (j.id === inspection.id) { selected = j; nestedScope = nested; }
             for (const [input, child] of Object.entries(j.inputs || {})) {
-              find(child, nested || j.type !== 'tt_answer' && !!(j.binds && j.binds[input]?.length));
+              find(child, nested || !['tt_answer', 'tt_problem', 'tt_judgment'].includes(j.type) && !!(j.binds && j.binds[input]?.length));
             }
           }
           find(blockJson);
           try {
             if (nestedScope) fail('E_SCOPE', 'Select the complete expression to check its local bindings', { src: inspection.id });
             if (result.ok && (selected === blockJson || selected && selected.id === (blockJson.inputs && blockJson.inputs.TERM && blockJson.inputs.TERM.id))) {
-              output.selectedType = showVal(ctx, level.inferTerm ? infer(ctx, tm) : evalTm(envOf(ctx), level.goal));
+              output.selectedType = showVal(ctx, level.inferTerm || level.entry ? infer(ctx, tm) : evalTm(envOf(ctx), level.goal));
             } else if (selected) {
               const selectedTm = selected === blockJson ? tm : elabBlock(selected, answerScope, opts);
               output.selectedType = showVal(ctx, infer(ctx, selectedTm));
@@ -292,7 +357,26 @@
     return checkWorkshop(level, blockJson, declarations, { id: selectedId, json: selectedJson });
   }
 
+  function checkCustomProblem(problem, declarations, inspection) {
+    const requirement = problem && problem.inputs && problem.inputs.TYPE;
+    if (!Object.prototype.hasOwnProperty.call(problem?.inputs || {}, 'TYPE')) return checkWorkshop({ givens: [], entry: true }, problem, declarations, inspection);
+    const level = { givens: [], goal: UNIT };
+    if (requirement && requirement.type === 'tt_requirement_infer') level.customInferJson = requirement.inputs && requirement.inputs.EXPR;
+    else {
+      level.customGoalJson = requirement && ['tt_requirement_type', 'tt_requirement_derivation'].includes(requirement.type)
+        ? requirement.inputs && requirement.inputs.TYPE : requirement;
+      if (requirement && requirement.type === 'tt_requirement_derivation') {
+        const kind = requirement.fields && requirement.fields.RULE_KIND || 'application';
+        if (!['application', 'any'].includes(kind)) return { ok: false, error: new CheckError('E_REQUIRE', 'Unknown inference requirement', null, null, 'ruleInvalid') };
+        level.requireDerivation = true;
+        if (kind === 'application') level.requireRule = 'tt_rule_pi_elim';
+      }
+    }
+    const answer = { type: 'tt_answer', id: problem && problem.id, inputs: { TERM: problem && problem.inputs && problem.inputs.TERM } };
+    return checkWorkshop(level, answer, declarations, inspection);
+  }
+
   return {
-    elabBlock, checkBlocks, checkWorkshop, inspectWorkshop,
+    elabBlock, checkBlocks, checkWorkshop, inspectWorkshop, checkCustomProblem,
   };
 });

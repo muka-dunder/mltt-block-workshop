@@ -16,6 +16,7 @@ const path = require('node:path');
     await page.goto('http://127.0.0.1:18745');
     await page.waitForFunction(() => window.__mltt?.workspace);
     await page.selectOption('#languageSelect', 'zh-CN');
+    assert.equal(await page.locator('#stars, #hintBtn, #hintBox, #winStars, #restoreTutorial, #clearNotes, #symbolSearch, #symbolList, #addAssumption, #addDefinition, #addAxiom, #declarationList').count(), 0);
     await page.selectOption('#levelSelect', '5');
     assert.match(await page.textContent('#levelStory'), /柯里化/);
     const refs = await page.evaluate(() => __mltt.workspace.getFlyout().getWorkspace().getBlocksByType('tt_var').map(b => LBM.decodeRef(b.getFieldValue('REF')).name));
@@ -27,14 +28,13 @@ const path = require('node:path');
     const lambdaId = await page.evaluate(() => {
       const w = __mltt.workspace;
       const lam = w.newBlock('tt_lam'); lam.initSvg(); lam.render();
-      w.getBlocksByType('tt_answer')[0].getInput('TERM').connection.connect(lam.outputConnection);
+      w.getBlocksByType('tt_problem')[0].getInputTargetBlock('TERM').getInput('TERM').connection.connect(lam.outputConnection);
       return lam.id;
     });
     await page.waitForFunction(id => {
       const w = __mltt.workspace, lam = w.getBlockById(id);
       return w.getFlyout().getWorkspace().getBlocksByType('tt_var').some(b => LBM.decodeRef(b.getFieldValue('REF')).uid === lam.ttBinds.BODY[0]);
     }, lambdaId);
-    assert.match(await page.textContent('#symbolList'), /x/);
     await page.evaluate(id => {
       const w = __mltt.workspace, lam = w.getBlockById(id);
       lam.setFieldValue('z', lam.ttNameFields[lam.ttBinds.BODY[0]]);
@@ -49,51 +49,47 @@ const path = require('node:path');
     }, lambdaId);
     assert.match(await page.textContent('#status'), /正确/);
     await page.evaluate(id => __mltt.workspace.getBlockById(id).dispose(false), lambdaId);
-    await page.waitForFunction(() => __mltt.workspace.getFlyout().getWorkspace().getBlocksByType('tt_var').length === 0);
+    await page.waitForFunction(id => !__mltt.workspace.getFlyout().getWorkspace().getBlocksByType('tt_var')
+      .some(b => LBM.decodeRef(b.getFieldValue('REF')).uid === 'b' + id + ':x'), lambdaId);
     await page.selectOption('#levelSelect', '8');
-    await page.click('#addDefinition');
     const ids = await page.evaluate(() => {
       const w = __mltt.workspace;
       const make = type => { const b = w.newBlock(type); b.initSvg(); b.render(); return b; };
-      const d = w.getBlocksByType('tt_declare')[0];
+      // Older shared workspaces may still contain declarations.
+      const d = make('tt_declare'); d.setFieldValue('definition', 'KIND');
       d.setFieldValue('myUnit', 'NAME');
       d.getInput('TYPE').connection.connect(make('tt_unit').outputConnection);
       d.getInput('VALUE').connection.connect(make('tt_star').outputConnection);
       __mltt.refreshWorkshop();
       const r = make('tt_symbol'); r.setFieldValue(d.id, 'REF');
-      w.getBlocksByType('tt_answer')[0].getInput('TERM').connection.connect(r.outputConnection);
+      w.getBlocksByType('tt_problem')[0].getInputTargetBlock('TERM').getInput('TERM').connection.connect(r.outputConnection);
       __mltt.check();
       return { d: d.id, r: r.id };
     });
     assert.match(await page.textContent('#status'), /正确/);
-    assert.match(await page.textContent('#declarationList'), /已检查/);
     await page.evaluate(id => { __mltt.workspace.getBlockById(id).setFieldValue('renamedUnit', 'NAME'); __mltt.refreshWorkshop(); }, ids.d);
     await page.selectOption('#languageSelect', 'en');
     assert.equal(await page.evaluate(id => __mltt.workspace.getBlockById(id).getFieldValue('REF'), ids.r), ids.d);
     await page.selectOption('#languageSelect', 'zh-CN');
-    await page.selectOption('#levelSelect', '0');
-    await page.click('#addAxiom');
+    await page.selectOption('#levelSelect', '8');
     await page.evaluate(() => {
       const w = __mltt.workspace;
       const make = type => { const b = w.newBlock(type); b.initSvg(); b.render(); return b; };
-      const d = w.getBlocksByType('tt_declare')[0];
+      const d = make('tt_declare'); d.setFieldValue('axiom', 'KIND');
       d.setFieldValue('oracle', 'NAME');
-      const a = make('tt_given'); a.setFieldValue('0', 'IDX');
-      d.getInput('TYPE').connection.connect(a.outputConnection);
+      d.getInput('TYPE').connection.connect(make('tt_unit').outputConnection);
       __mltt.refreshWorkshop();
       const r = make('tt_symbol'); r.setFieldValue(d.id, 'REF');
-      w.getBlocksByType('tt_answer')[0].getInput('TERM').connection.connect(r.outputConnection);
+      w.getBlocksByType('tt_problem')[0].getInputTargetBlock('TERM').getInput('TERM').connection.connect(r.outputConnection);
       __mltt.check();
     });
     assert.match(await page.textContent('#status'), /oracle/);
-    assert.match(await page.textContent('#status'), /不计/);
-    assert.equal(await page.textContent('#stars'), '☆☆☆');
     await page.selectOption('#levelSelect', '5');
     await page.screenshot({ path: path.join(require('node:os').tmpdir(), 'mltt-workshop.png') });
     await page.setViewportSize({ width: 390, height: 844 });
     assert(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));
     assert.deepEqual(errors, []);
-    console.log('PASS: direct variables, lambda variable shelf/create/rename/delete, complete library, checked definitions, stable references, locale switch, axiom dependencies, no axiom stars, responsive layout');
+    console.log('PASS: direct variables, lambda variable shelf/create/rename/delete, complete library, legacy declarations, stable references, locale switch, axiom dependencies, simplified controls, responsive layout');
   } finally {
     if (browser) await browser.close();
     await server.close();

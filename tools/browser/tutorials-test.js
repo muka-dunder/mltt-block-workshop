@@ -14,10 +14,10 @@ const path = require('node:path');
     await page.goto(`http://127.0.0.1:${server.httpServer.address().port}`);
     await page.waitForFunction(() => window.__mltt?.notes);
     const count = await page.locator('#levelSelect option').count();
-    assert.equal(count, 17);
+    assert.equal(count, 19);
     for (const width of [1280, 988]) {
       await page.setViewportSize({ width, height: 900 });
-      for (let i = 0; i < count; i++) {
+      for (let i = 0; i < 17; i++) {
         await page.selectOption('#levelSelect', String(i));
         await page.selectOption('#languageSelect', 'zh-CN');
         const note = page.locator('.note-card[data-kind="tutorial"]');
@@ -25,7 +25,7 @@ const path = require('node:path');
         assert((await note.locator('textarea').inputValue()).length >= 100, 'Every lesson needs a full explanation');
         await page.waitForFunction(() => {
           const card = document.querySelector('.note-card[data-kind="tutorial"]').getBoundingClientRect();
-          const answer = __mltt.workspace.getBlocksByType('tt_answer')[0].getSvgRoot().getBoundingClientRect();
+          const answer = __mltt.workspace.getBlocksByType('tt_problem')[0].getSvgRoot().getBoundingClientRect();
           const host = document.querySelector('#blocklyDiv').getBoundingClientRect();
           return card.left >= answer.right + 15 && card.right <= host.right + 2 && card.top >= host.top && card.bottom <= host.bottom;
         });

@@ -19,13 +19,20 @@ async function start() {
   await import('./core/runtime.js');
   await import('./core/printing.js');
   await import('./core/checking.js');
+  await import('./core/entry-checking.js');
   await import('./core/block-checking.js');
   await import('./core/mltt.js');
   await import('./levels/foundations.js');
   await import('./levels/advanced.js');
+  await import('./levels/proofs.js');
   await import('./levels/index.js');
   await import('./blockly/scope.js');
   await import('./blockly/blocks.js');
+  await import('./blockly/sequences.js');
+  await import('./blockly/rules.js');
+  await import('./blockly/judgments.js');
+  await import('./blockly/problems.js');
+  await import('./blockly/locking.js');
   await import('./ui/app.js');
 }
 

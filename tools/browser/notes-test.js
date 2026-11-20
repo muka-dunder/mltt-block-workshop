@@ -31,6 +31,7 @@ const path = require('node:path');
     page.once('dialog', dialog => dialog.accept());
     await page.click('#resetBtn');
     assert.match(await text.inputValue(), /λx/);
+    await page.waitForFunction(() => location.search === '?level=L1' && location.hash.startsWith('#workshop=v1.'));
     await page.reload();
     await page.waitForFunction(() => window.__mltt?.notes);
     assert.match(await text.inputValue(), /λx/);
@@ -51,12 +52,12 @@ const path = require('node:path');
     const resized = await card.boundingBox();
     assert(resized.width > moved.width + 20 && resized.height > moved.height + 15, 'Card must resize using its corner');
     await page.evaluate(() => {
-      const answer = __mltt.workspace.getBlocksByType('tt_answer')[0];
+      const answer = __mltt.workspace.getBlocksByType('tt_problem')[0];
       __mltt.notes.add(answer.id);
     });
     const attached = page.locator('.note-card[data-kind="user"]').last();
     const before = await attached.boundingBox();
-    await page.evaluate(() => __mltt.workspace.getBlocksByType('tt_answer')[0].moveBy(45, 30));
+    await page.evaluate(() => __mltt.workspace.getBlocksByType('tt_problem')[0].moveBy(45, 30));
     await page.waitForFunction(({ x }) => {
       const cards = document.querySelectorAll('.note-card[data-kind="user"]');
       return Math.abs(cards[cards.length - 1].getBoundingClientRect().x - x - 45 * __mltt.workspace.scale) < 2;
@@ -69,15 +70,17 @@ const path = require('node:path');
     });
     await page.waitForFunction(() => __mltt.notes.notes.filter(n => !n.tutorial).length === 3 && !__mltt.notes.notes.at(-1).blockId);
     assert.equal(await page.locator('.note-card[data-kind="user"]').count(), 3);
-    page.once('dialog', dialog => dialog.accept());
-    await page.click('#clearNotes');
+    assert.equal(await page.locator('#clearNotes, #restoreTutorial').count(), 0);
+    for (let remaining = 3; remaining > 0; remaining--) {
+      await page.locator('.note-card[data-kind="user"] [data-action="delete"]').last().click();
+      assert.equal(await page.locator('.note-card[data-kind="user"]').count(), remaining - 1);
+    }
     assert.equal(await page.locator('.note-card[data-kind="user"]').count(), 0);
     assert.equal(await page.locator('.note-card[data-kind="tutorial"]').count(), 1);
     await page.selectOption('#languageSelect', 'zh-CN');
-    await page.click('#restoreTutorial');
     await page.screenshot({ path: path.join(require('node:os').tmpdir(), 'mltt-notes.png') });
     assert.deepEqual(errors, []);
-    console.log('PASS: tutorial notes, text safety, persistence, collapse, drag, resize, attached movement, context menu, deleted target preservation, separate clearing');
+    console.log('PASS: tutorial notes, text safety, persistence, collapse, drag, resize, attached movement, context menu, deleted target preservation, individual deletion');
   } finally {
     if (browser) await browser.close();
     await server.close();

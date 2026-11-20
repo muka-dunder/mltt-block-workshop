@@ -88,15 +88,21 @@
   B.Blocks['tt_pi'] = {
     init() {
       declareBinder(this, { BODY: 'x' });
-      this.appendDummyInput()
-        .appendField('Π')
+      this.appendValueInput('DOM')
+        .appendField('Π (')
         .appendField(nameField('x'), 'XNAME')
         .appendField(':');
-      this.appendValueInput('DOM');
-      this.appendValueInput('BODY').appendField('→');
-      this.setInputsInline(false);
+      this.appendValueInput('BODY').appendField(') →');
+      this.setInputsInline(true);
       this.setOutput(true, null);
       this.setTooltip(() => t('block.piTooltip'));
+    },
+    refreshTypeLayout() {
+      const width = this.inputList.reduce((sum, input) => sum + input.fieldRow.reduce((n, field) =>
+        n + field.getSize().width + 8, 0) + (input.connection?.targetBlock()?.getHeightWidth().width || 24), 28);
+      const viewWidth = this.workspace.getMetrics()?.viewWidth || 800;
+      const inline = width <= Math.min(480, Math.max(260, viewWidth * 0.7));
+      if (this.inputsInline !== inline) this.setInputsInline(inline);
     }
   };
 
@@ -104,16 +110,16 @@
   B.Blocks['tt_sigma'] = {
     init() {
       declareBinder(this, { BODY: 'x' });
-      this.appendDummyInput()
-        .appendField('Σ')
+      this.appendValueInput('DOM')
+        .appendField('Σ (')
         .appendField(nameField('x'), 'XNAME')
         .appendField(':');
-      this.appendValueInput('DOM');
-      this.appendValueInput('BODY').appendField('×');
-      this.setInputsInline(false);
+      this.appendValueInput('BODY').appendField(') ×');
+      this.setInputsInline(true);
       this.setOutput(true, null);
       this.setTooltip(() => t('block.sigmaTooltip'));
-    }
+    },
+    refreshTypeLayout() { B.Blocks.tt_pi.refreshTypeLayout.call(this); },
   };
 
   // let
@@ -213,71 +219,17 @@
     init() {
       const givens = (typeof window !== 'undefined' && window.GAME_GIVENS) || [];
       const opts = givens.length
-        ? givens.map((g, i) => [g.label, String(i)])
+        ? givens.map((g, i) => [g.name || g.label.split(':')[0].trim(), String(i)])
         : [['∅', '0']];
       const f = new B.FieldDropdown(opts);
-      this.appendDummyInput().appendField(t('block.given')).appendField(f, 'IDX');
+      this.appendDummyInput().appendField(f, 'IDX');
       this.setOutput(true, null);
       this.setColour('#d7ccc8');
-      this.setTooltip(() => t('block.givenTooltip'));
+      this.setTooltip(() => givens[Number(this.getFieldValue('IDX'))]?.label || t('block.givenTooltip'));
     }
   };
 
-  // Answer slot: auto-generated, non-deletable top-level container.
-  // Checking reads only this slot; other top-level blocks are scratch.
-  B.Blocks['tt_answer'] = {
-    init() {
-      // A level may declare several answer-slot local variables (for example L3's f and x).
-      const binders = (typeof window !== 'undefined' && window.GAME_ANSWER_BINDERS) || [];
-      const infer = (typeof window !== 'undefined' && window.GAME_INFER) || false;
-      const inferTerm = (typeof window !== 'undefined' && window.GAME_INFER_TERM) || '?';
-      const ctxRaw = (typeof window !== 'undefined' && window.GAME_ANSWER_CTX) || [];
-      const ctx = Array.isArray(ctxRaw) ? ctxRaw : (ctxRaw ? String(ctxRaw).split(/,\s*/) : []);
-      // Split the given context by commas into rows; EndRowInput forces the next item onto a new line,
-      // while keeping inputsInline so TERM remains a nestable "hole".
-      ctx.forEach((text, i) => {
-        this.appendEndRowInput().appendField(new B.FieldLabel(text), 'CTX' + i);
-      });
-      if (binders.length) {
-        // One uid per binder; field names are BNAME0/BNAME1... so app can fill them back in.
-        declareBinder(this, { TERM: binders.map((_, i) => 'v' + i) });
-        const uids = this.ttBinds.TERM || [];
-        this.ttNameFields = {};
-        binders.forEach((b, i) => {
-          const f = FieldLocalVar ? new FieldLocalVar(b.name || ('v' + i)) : nameField(b.name || ('v' + i));
-          f.setTooltip(() => t('block.binderTooltip'));
-          if (uids[i]) this.ttNameFields[uids[i]] = 'BNAME' + i;
-          const row = this.appendEndRowInput();
-          row.appendField(f, 'BNAME' + i);
-          row.appendField(' : ');
-          row.appendField(new B.FieldLabel(b.tyText || '?'), 'BTYPE' + i);
-        });
-      }
-      this.setColour('#d1c4e9');
-      this.appendEndRowInput().appendField('⊢');
-      if (infer) {
-        // Inference mode: show the fixed term; the player fills in its type.
-        const row = this.appendDummyInput();
-        row.appendField(new B.FieldLabel(inferTerm), 'INFERTERM');
-        row.appendField(' :');
-        this.appendValueInput('TERM');
-      } else {
-        this.appendValueInput('TERM');
-        this.appendDummyInput()
-          .appendField(':')
-          .appendField(new B.FieldLabel('?'), 'GOAL');
-      }
-      this.setInputsInline(true);
-      this.setDeletable(false);
-      this.setMovable(true);
-      this.setTooltip(() => infer
-        ? t('block.answerInferTooltip')
-        : t('block.answerTooltip'));
-      this.ttIsAnswer = true;
-    }
-  };
-
-  /* The answer block inline input stays a "hole": the background is not covered, so the answer nests in it. */
+  // problems.js installs the unified tt_problem and legacy tt_answer definitions.
 
   // Simple blocks (JSON)
   const simpleBlocks = [

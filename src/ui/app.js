@@ -1,46 +1,51 @@
-/* Game shell: Blockly workspace, levels, checking, hints, progress. */
-import { createNotes } from './notes.js';
-import { createWorkshop, wt } from './workshop.js';
-import { makeTheme, toJson, createVariableTools } from './workspace-tools.js';
+/* Game shell: Blockly workspace, levels, checking, progress. */
+import { createNotes } from './notes/notes.js';
+import { createWorkshop, wt } from './workspace/workshop.js';
+import { makeTheme, toJson, createVariableTools } from './workspace/workspace-tools.js';
+import { createCustomMode, configureLevelGlobals } from './problems/custom-mode.js';
+import { createSharing } from './sharing/share.js';
+import { ensurePresetProblem, migrateProblemContainers } from './problems/preset-problems.js';
+import { createAnswerPreview } from './problems/solutions.js';
 
 (function () {
   'use strict';
   const $ = (s) => document.querySelector(s);
   const MLTT = window.MLTT;
   const t = window.I18N.t;
-  // Levels currently exposed: L0-L16 (local variables, lambda, application, inference, Pi, unit, empty, product, Sigma, Id, universe); the rest stay in levels.js.
-  let LEVELS = window.LEVELS.levels.slice(0, 17).map(window.I18N.level);
+  // Keep the existing sequence, then offer the inference-rule example.
+  const exposedLevels = () => window.LEVELS.levels.filter((lv, i) => i < 17 || lv.id === 'R0' || lv.id === 'R1').map(window.I18N.level);
+  let LEVELS = exposedLevels();
   let statusRenderer = null;
 
   const STORE = 'mltt.progress.v1';
   const state = {
     index: 0,
-    stars: {},
-    hintUsed: 0,
-    hintsShown: 0,
     level: null,
     busy: false,
     loading: false,
+    mode: 'level',
   };
 
   let workspace = null;
   let answerBlock = null;
   let notes = null;
+  let custom = null, sharing = null;
+  let answerPreview = null;
 
   const workshop = createWorkshop({ getWorkspace: () => workspace, getLevel: () => state.level,
-    ensureAnswer, binderTypesText, goalText, toJson });
-  const { toolboxXml, checkConstruction, renderSymbols, renderSelection, refreshWorkshop, addDeclaration } = workshop;
-  const { refreshVars, highlightBinderFor } = createVariableTools({ getWorkspace: () => workspace,
+    ensureAnswer, goalText, toJson });
+  const { toolboxXml, checkConstruction, renderSelection, refreshWorkshop } = workshop;
+  const { refreshVars, highlightBinderFor, remapCreatedBindings } = createVariableTools({ getWorkspace: () => workspace,
     getBusy: () => state.busy, setBusy: value => { state.busy = value; } });
 
   // ---------- Utilities ----------
   function renderLanguage() {
     document.title = 'MLTT ' + t('brand');
     $('.brand span').textContent = t('brand');
-    for (const [id, key] of Object.entries({ checkBtn: 'check', hintBtn: 'hint', resetBtn: 'reset', winClose: 'stay' })) {
+    for (const [id, key] of Object.entries({ checkBtn: 'check', viewAnswerBtn: 'viewAnswer', resetBtn: 'reset', winClose: 'stay' })) {
       $('#' + id).textContent = t(key);
     }
-    for (const [id, key] of Object.entries({ prevBtn: 'previous', nextBtn2: 'next', stars: 'stars' })) {
+    for (const [id, key] of Object.entries({ prevBtn: 'previous', nextBtn2: 'next' })) {
       $('#' + id).title = t(key);
     }
     $('#levelSelect').setAttribute('aria-label', t('selectLevel'));
@@ -53,13 +58,14 @@ import { makeTheme, toJson, createVariableTools } from './workspace-tools.js';
     }
     workshop.renderLanguage();
     if (notes) notes.setLocale();
+    if (custom) custom.renderUI();
+    if (sharing) sharing.setLocale();
+    answerPreview?.setLocale();
   }
 
   function switchLanguage(locale) {
     if (locale === window.I18N.locale) return;
-    // XML retains block IDs, positions, field values and binder references.
-    // Keep this in memory so a storage-disabled browser can switch safely too.
-    const xml = Blockly.Xml.workspaceToDom(workspace);
+    const serialized = Blockly.serialization.workspaces.save(workspace);
     if (notes) notes.beforeLevelChange();
     const view = { scale: workspace.scale, x: workspace.scrollX, y: workspace.scrollY };
     const previousStatus = statusRenderer;
@@ -68,11 +74,12 @@ import { makeTheme, toJson, createVariableTools } from './workspace-tools.js';
     Blockly.Events.disable();
     try {
       window.I18N.setLocale(locale);
-      LEVELS = window.LEVELS.levels.slice(0, 17).map(window.I18N.level);
-      state.level = LEVELS[state.index];
-      workspace.clear();
+      LEVELS = exposedLevels();
+      state.level = custom?.active ? custom.level() : LEVELS[state.index];
+      if (!custom?.active) configureLevelGlobals(state.level, givensList(), ctxWithBinder());
+      window.BlockFreeze.withChanges(workspace, () => workspace.clear());
       workspace.updateToolbox(toolboxXml());
-      Blockly.Xml.domToWorkspace(xml, workspace);
+      Blockly.serialization.workspaces.load(migrateProblemContainers(serialized), workspace);
       answerBlock = ensureAnswer();
       workspace.setScale(view.scale);
       workspace.scroll(view.x, view.y);
@@ -82,25 +89,27 @@ import { makeTheme, toJson, createVariableTools } from './workspace-tools.js';
       refreshWorkshop();
       if (notes) notes.loadLevel(state.level);
       if (previousStatus) setStatus(previousStatus.html, previousStatus.kind);
-      if (overlayOpen) showWin(state.stars[state.level.id] || 0, blockCount(answerBlock.getInputTargetBlock('TERM')));
+      if (overlayOpen && answerBlock?.getInputTargetBlock('TERM')) showWin();
       Blockly.svgResize(workspace);
       if (notes) notes.refresh();
     } finally {
       Blockly.Events.enable();
       state.loading = false;
     }
+    sharing?.scheduleSync();
   }
 
   function loadProgress() {
     try {
       const raw = localStorage.getItem(STORE);
-      if (raw) Object.assign(state, JSON.parse(raw));
+      const index = raw && JSON.parse(raw).index;
+      if (Number.isInteger(index) && index >= 0) state.index = index;
     } catch (e) { /* ignore */ }
     if (state.index >= LEVELS.length) state.index = 0;
   }
   function saveProgress() {
     try {
-      localStorage.setItem(STORE, JSON.stringify({ index: state.index, stars: state.stars }));
+      localStorage.setItem(STORE, JSON.stringify({ index: state.index }));
     } catch (e) { /* ignore */ }
   }
   function esc(s) {
@@ -117,26 +126,7 @@ import { makeTheme, toJson, createVariableTools } from './workspace-tools.js';
     $('#levelTitle').textContent = lv.id + ' · ' + lv.title;
     $('#levelTag').textContent = lv.tag;
     $('#levelStory').textContent = lv.story;
-    renderStars();
-    renderHints();
-  }
-
-  function renderStars() {
-    const n = state.stars[state.level.id] || 0;
-    $('#stars').textContent = '★'.repeat(n) + '☆'.repeat(3 - n);
-  }
-
-  function renderHints() {
-    const lv = state.level;
-    const box = $('#hintBox');
-    box.innerHTML = '';
-    for (let i = 0; i < state.hintsShown; i++) {
-      const li = document.createElement('li');
-      li.textContent = lv.hints[i];
-      box.appendChild(li);
-    }
-    box.classList.toggle('show', state.hintsShown > 0);
-    $('#hintBtn').disabled = state.hintsShown >= lv.hints.length;
+    if (custom) custom.renderUI();
   }
 
   function setStatus(html, kind) {
@@ -148,80 +138,39 @@ import { makeTheme, toJson, createVariableTools } from './workspace-tools.js';
   }
 
   function loadLevel(i) {
-    if (notes) notes.beforeLevelChange();
-    state.loading = true;
-    state.index = (i + LEVELS.length) % LEVELS.length;
-    state.level = LEVELS[state.index];
-    state.hintUsed = 0;
-    state.hintsShown = 0;
+    answerPreview?.reset();
+    Blockly.Events.disable();
+    try {
+      if (notes) notes.beforeLevelChange();
+      state.loading = true;
+      state.index = (i + LEVELS.length) % LEVELS.length;
+      state.level = LEVELS[state.index];
 
-    workspace.clear();
-    answerBlock = null;
-    window.GAME_SYMBOLS = [];
-    workshop.reset();
-    // Read by tt_given init (toolbox blocks are instantiated in updateToolbox).
-    let ctx0 = [];
-    try { ctx0 = MLTT.buildCtx(state.level.givens); } catch (e) { ctx0 = []; }
-    window.GAME_GIVENS = state.level.givens.map((g, i) => {
-      let t = '?';
-      try { t = MLTT.show(ctx0.slice(0, i), g.ty); } catch (e) { t = '?'; }
-      return { label: g.name + ' : ' + t, name: g.name };
-    });
-    // Local variables supplied by the answer block (L3 has f and x; levels without them are empty).
-    const binders = state.level.answerBinders || [];
-    let ctxB = [];
-    try { ctxB = MLTT.buildCtx(state.level.givens); } catch (e) { ctxB = []; }
-    window.GAME_ANSWER_BINDERS = binders.map((b) => {
-      let tyText = '?';
-      try { tyText = MLTT.show(ctxB, b.ty); } catch (e) { /* ignore */ }
-      try {
-        MLTT.sortOf(ctxB, b.ty);
-        ctxB.push({ name: b.name, ty: MLTT.evalTm(MLTT.envOf(ctxB), b.ty) });
-      } catch (e) { /* ignore */ }
-      return { name: b.name, tyText };
-    });
-    window.GAME_HAS_BINDER = binders.length > 0;
-    window.GAME_ANSWER_CTX = givensList();
-    window.GAME_INFER = !!state.level.inferTerm;
-    window.GAME_INFER_TERM = '';
-    if (window.GAME_INFER) {
-      try { window.GAME_INFER_TERM = MLTT.show(ctxWithBinder(), state.level.inferTerm); }
-      catch (e) { window.GAME_INFER_TERM = '?'; }
-    }
-    workspace.updateToolbox(toolboxXml());
-    try { workspace.scroll(0, 0); } catch (e) { /* ignore */ }
-    answerBlock = ensureAnswer();
-    if (notes) notes.loadLevel(state.level);
-    refreshWorkshop();
-    renderPanel();
-    setStatus(() => state.level.inferTerm
-      ? t('inferIdle')
-      : t('idle'), 'idle');
-    $('#levelSelect').value = String(state.index);
-    saveProgress();
-    state.loading = false;
-    Blockly.svgResize(workspace);
-    centerOnAnswer();
+      window.BlockFreeze.withChanges(workspace, () => workspace.clear());
+      answerBlock = null;
+      window.GAME_SYMBOLS = [];
+      workshop.reset();
+      configureLevelGlobals(state.level, givensList(), ctxWithBinder());
+      workspace.updateToolbox(toolboxXml());
+      try { workspace.scroll(0, 0); } catch (e) { /* ignore */ }
+      answerBlock = ensureAnswer();
+      refreshVars();
+      if (notes) notes.loadLevel(state.level);
+      refreshWorkshop();
+      renderPanel();
+      setStatus(() => state.level.inferTerm
+        ? t('inferIdle')
+        : t('idle'), 'idle');
+      $('#levelSelect').value = String(state.index);
+      saveProgress();
+      state.loading = false;
+      Blockly.svgResize(workspace);
+      centerOnAnswer();
+    } finally { Blockly.Events.enable(); }
+    sharing?.scheduleSync({ pristine: !notes?.notes.some(note => !note.tutorial) });
   }
 
   // ---------- Answer slot ----------
-  /** Type text for each answer-slot local variable, in declaration order (later ones may depend on earlier ones). */
-  function binderTypesText() {
-    const lv = state.level;
-    const binders = lv.answerBinders || [];
-    let ctx = [];
-    try { ctx = MLTT.buildCtx(lv.givens); } catch (e) { ctx = []; }
-    return binders.map((b) => {
-      let t = '?';
-      try { t = MLTT.show(ctx, b.ty); } catch (e) { /* ignore */ }
-      try {
-        MLTT.sortOf(ctx, b.ty);
-        ctx.push({ name: b.name, ty: MLTT.evalTm(MLTT.envOf(ctx), b.ty) });
-      } catch (e) { /* ignore */ }
-      return t;
-    });
-  }
-
   /** Given context (hides universes such as A : Type), one item per line. */
   function givensList() {
     const lv = state.level;
@@ -255,61 +204,33 @@ import { makeTheme, toJson, createVariableTools } from './workspace-tools.js';
     try { return MLTT.show(ctxWithBinder(), state.level.goal); } catch (e) { return '?'; }
   }
 
-  /** Write "knowns, f : ..., x : ... |- answer-slot : goal" onto the answer block. */
-  function setAnswerLabels(block, setName) {
-    if (!block) return;
-    try {
-      const lv = state.level;
-      const binders = lv.answerBinders || [];
-      givensList().forEach((text, i) => {
-        const cf = 'CTX' + i;
-        if (block.getField(cf) && block.getFieldValue(cf) !== text) {
-          block.setFieldValue(text, cf);
-        }
-      });
-      const types = binderTypesText();
-      binders.forEach((b, i) => {
-        const nf = 'BNAME' + i;
-        const tf = 'BTYPE' + i;
-        if (!block.getField(nf)) return;
-        if (setName && block.getFieldValue(nf) !== b.name) block.setFieldValue(b.name, nf);
-        if (block.getFieldValue(tf) !== types[i]) block.setFieldValue(types[i], tf);
-      });
-      const goal = goalText();
-      const goalField = block.getField('GOAL');
-      if (goalField && block.getFieldValue('GOAL') !== goal) block.setFieldValue(goal, 'GOAL');
-      const inferField = block.getField('INFERTERM');
-      if (inferField) {
-        const text = window.GAME_INFER_TERM || '';
-        if (block.getFieldValue('INFERTERM') !== text) block.setFieldValue(text, 'INFERTERM');
-      }
-    } catch (e) { /* older API */ }
-  }
-
-  /** The canvas always has one preferred "answer" block; recreate it if deleted. */
+  /** Every preset uses the same checking container as the custom canvas. */
   function ensureAnswer() {
     if (!workspace) return null;
-    const list = workspace.getBlocksByType('tt_answer', false);
+    if (custom?.active) return custom.selectedProblem();
+    const list = workspace.getBlocksByType('tt_problem', false);
     if (list.length > 1) {
-      for (let i = 1; i < list.length; i++) {
-        list[i].setWarningText(t('duplicate'));
-        list[i].setColour('#5b6475');
+      for (const duplicate of list.slice(1)) {
+        duplicate.setWarningText(t('duplicate'));
+        duplicate.setColour('#5b6475');
       }
     }
-    if (list.length) {
-      setAnswerLabels(list[0], false);
-      return list[0];
+    let problem = list[0];
+    if (!problem) {
+      problem = workspace.newBlock('tt_problem');
+      problem.initSvg(); problem.render(); problem.moveBy(80, 80);
     }
-    const b = workspace.newBlock('tt_answer');
-    try { b.initSvg(); } catch (e) { /* Blockly 11 initializes automatically */ }
-    b.render();
-    b.moveBy(80, 80);
-    setAnswerLabels(b, true);
-    return b;
+    return ensurePresetProblem(workspace, state.level, problem);
   }
 
   function centerOnAnswer() {
     if (!workspace || !answerBlock) return;
+    if (state.level.starterBlock) {
+      for (const block of answerBlock.getDescendants(false).reverse()) block.render();
+      const width = answerBlock.getSvgRoot().getBoundingClientRect().width;
+      const available = $('#blocklyDiv').clientWidth - (workspace.getFlyout()?.getWidth() || 0) - 24;
+      if (width > available) workspace.setScale(Math.max(0.6, workspace.scale * available / width * 0.95));
+    }
     try { workspace.centerOnBlock(answerBlock.id); } catch (e) { /* ignore */ }
     if (notes) notes.focusTutorial();
   }
@@ -320,20 +241,10 @@ import { makeTheme, toJson, createVariableTools } from './workspace-tools.js';
     return { answer: ans, term: ans.getInputTargetBlock('TERM') };
   }
 
-  function blockCount(b) {
-    let n = 1;
-    for (const inp of b.inputList) {
-      if (inp.connection) {
-        const t = inp.connection.targetBlock();
-        if (t) n += blockCount(t);
-      }
-    }
-    return n;
-  }
-
   // ---------- Checking ----------
   function doCheck(showOverlay) {
     refreshVars();
+    if (custom?.active) return custom.check();
     const slot = answerTerm();
     if (slot.error) {
       setStatus(() => esc(t('missing')), 'warn');
@@ -348,7 +259,6 @@ import { makeTheme, toJson, createVariableTools } from './workspace-tools.js';
           : t('empty')), 'warn');
       return;
     }
-    const term = slot.term;
     let r;
     try {
       // Start from the answer block itself so its local variables are in scope.
@@ -359,20 +269,11 @@ import { makeTheme, toJson, createVariableTools } from './workspace-tools.js';
     }
     if (r.ok) {
       if (r.assumptions && r.assumptions.length) {
-        setStatus(() => esc(wt('dependent') + r.assumptions.map(a => a.name).join(', ') + wt('experiment')), 'ok');
+        setStatus(() => esc(wt('dependent') + r.assumptions.map(a => a.name).join(', ')), 'ok');
         return;
       }
-      const n = blockCount(term);
-      const lv = state.level;
-      let stars = 1;
-      if (n <= lv.par && state.hintUsed === 0) stars = 3;
-      else if (n <= lv.par + 2 && state.hintUsed <= 1) stars = 2;
-      state.stars[lv.id] = Math.max(state.stars[lv.id] || 0, stars);
-      saveProgress();
-      renderStars();
-      setStatus(() => esc(t('correct')) + '<span class="meta">' + esc(t('counts', { count: n, par: lv.par })) +
-        esc(state.hintUsed ? t('hintsUsed', { count: state.hintUsed }) : t('noHints')) + '</span>', 'ok');
-      if (showOverlay) showWin(stars, n);
+      setStatus(() => esc(t('correct')), 'ok');
+      if (showOverlay) showWin();
       return;
     }
     if (r.holes) {
@@ -388,10 +289,9 @@ import { makeTheme, toJson, createVariableTools } from './workspace-tools.js';
   }
 
   // ---------- Win ----------
-  function showWin(stars, n) {
+  function showWin() {
     const lv = state.level;
-    $('#winStars').textContent = '★'.repeat(stars) + '☆'.repeat(3 - stars);
-    $('#winText').innerHTML = esc(t('passed', { title: lv.title, count: n })) + '<br><span class="mono">' +
+    $('#winText').innerHTML = esc(t('correct')) + '<br><span class="mono">' +
       esc(lv.solutionText) + '</span>';
     $('#overlay').classList.add('show');
     $('#nextBtn').textContent = state.index + 1 < LEVELS.length ? t('nextAction') : t('back');
@@ -410,6 +310,7 @@ import { makeTheme, toJson, createVariableTools } from './workspace-tools.js';
     workspace = Blockly.inject('blocklyDiv', {
       toolbox: toolboxXml(),
       renderer: 'thrasos',
+      plugins: { connectionChecker: 'mltt_freeze_checker' },
       theme: makeTheme(),
       grid: { spacing: 26, length: 3, colour: '#1d2430', snap: false },
       zoom: { controls: true, wheel: true, startScale: 1, minScale: 0.35, maxScale: 1.6 },
@@ -442,22 +343,9 @@ import { makeTheme, toJson, createVariableTools } from './workspace-tools.js';
     $('#languageSelect').addEventListener('change', (e) => switchLanguage(e.target.value));
     workshop.bindControls();
     $('#addNote').addEventListener('click', () => notes.add());
-    $('#restoreTutorial').addEventListener('click', () => notes.restoreTutorial());
-    $('#clearNotes').addEventListener('click', () => {
-      if (confirm(wt('clearNotesConfirm'))) notes.clearUserNotes();
-    });
-
     $('#checkBtn').addEventListener('click', () => doCheck(true));
-    $('#hintBtn').addEventListener('click', () => {
-      const lv = state.level;
-      if (state.hintsShown < lv.hints.length) {
-        state.hintsShown++;
-        state.hintUsed++;
-        renderHints();
-      }
-    });
     $('#resetBtn').addEventListener('click', () => {
-      if (confirm(t('clear'))) loadLevel(state.index);
+      if (confirm(t('clear'))) custom.active ? custom.reset() : loadLevel(state.index);
     });
     $('#prevBtn').addEventListener('click', () => loadLevel(state.index - 1));
     $('#nextBtn2').addEventListener('click', () => loadLevel(state.index + 1));
@@ -476,6 +364,7 @@ import { makeTheme, toJson, createVariableTools } from './workspace-tools.js';
       if (state.loading) return;
       refreshVars();
       refreshWorkshop();
+      if (custom?.active) { custom.scheduleSave(); return; }
       // The term in the slot changed; re-render the answer block (large terms can overflow the border).
       if (answerBlock) { try { answerBlock.render(); } catch (e) { /* ignore */ } }
       if (notes) notes.refresh();
@@ -484,7 +373,7 @@ import { makeTheme, toJson, createVariableTools } from './workspace-tools.js';
       if (term) {
         // Keep feedback in sync even after a previously correct answer changes.
         const r = workshop.lastResult;
-        if (r.ok && r.assumptions && r.assumptions.length) setStatus(() => esc(wt('dependent') + r.assumptions.map(a => a.name).join(', ') + wt('experiment')), 'ok');
+        if (r.ok && r.assumptions && r.assumptions.length) setStatus(() => esc(wt('dependent') + r.assumptions.map(a => a.name).join(', ')), 'ok');
         else if (r.ok) setStatus(() => t('looksRight'), 'ok');
         else if (r.error) setStatus(() => esc(window.I18N.error(r.error)), 'warn');
         else setStatus(() => esc(t('holes', { count: (r.holes || []).length })), 'warn');
@@ -494,10 +383,13 @@ import { makeTheme, toJson, createVariableTools } from './workspace-tools.js';
     }, 160);
 
     workspace.addChangeListener((e) => {
-      if (e.type === Blockly.Events.SELECTED && !state.loading) { renderSymbols(); renderSelection(); highlightBinderFor(e.newElementId); }
+      if (e.type === Blockly.Events.SELECTED && !state.loading) { renderSelection(); highlightBinderFor(e.newElementId); }
       if (state.loading || e.isUiEvent) return;
+      if (e.type === Blockly.Events.BLOCK_CREATE) remapCreatedBindings(e.ids);
+      if (custom?.active) custom.scheduleSave();
       if (e.type === Blockly.Events.BLOCK_CHANGE || e.type === Blockly.Events.BLOCK_MOVE ||
         e.type === Blockly.Events.BLOCK_CREATE || e.type === Blockly.Events.BLOCK_DELETE) {
+        sharing?.scheduleSync();
         scheduleRefresh();
         // Clear old error highlights
         try { workspace.highlightBlock(null); } catch (err) {}
@@ -511,8 +403,31 @@ import { makeTheme, toJson, createVariableTools } from './workspace-tools.js';
     new ResizeObserver(() => Blockly.svgResize(workspace)).observe($('#blocklyDiv'));
 
     notes = createNotes({ workspace, host: $('#blocklyDiv'), locale: () => window.I18N.locale,
-      getLevel: () => state.level, getAnswer: () => answerBlock });
+      getLevel: () => state.level, getAnswer: () => answerBlock,
+      getAnswerMode: () => !!answerPreview?.active,
+      onChange: () => { if (!state.loading) sharing?.scheduleSync(); } });
     loadLevel(state.index);
+    custom = createCustomMode({ workspace, state, notes: () => notes, levels: () => LEVELS, loadLevel, toJson,
+      refresh: () => { answerBlock = ensureAnswer(); refreshVars(); refreshWorkshop(); renderLanguage(); renderPanel(); },
+      status: (message, kind) => setStatus(() => esc(message), kind),
+      onChange: () => { if (!state.loading) sharing?.scheduleSync(); },
+      beforeModeChange: () => !answerPreview?.active || answerPreview.restore(),
+      getAnswerState: () => answerPreview?.exportState() || null,
+      onAnswerState: value => answerPreview?.importState(value) });
+    custom.init();
+    sharing = createSharing({ exportSession: () => custom.exportSession(), importSession: payload => custom.importSession(payload),
+      button: $('#shareBtn'), locale: () => window.I18N.locale, status: (message, kind) => setStatus(() => esc(message), kind) });
+    answerPreview = createAnswerPreview({ getWorkspace: () => workspace, getLevel: () => state.level,
+      locale: () => window.I18N.locale, status: (message, kind) => setStatus(() => esc(message), kind),
+      exportSession: () => custom.exportSession(), importSession: payload => custom.importSession(payload),
+      refresh: () => {
+        answerBlock = ensureAnswer(); refreshVars(); refreshWorkshop(); renderLanguage(); renderPanel();
+        notes.setLocale();
+        if (answerPreview.active) notes.restoreTutorial(); else notes.refresh();
+        sharing.scheduleSync();
+      } });
+    $('#viewAnswerBtn').addEventListener('click', () => answerPreview.show());
+    void sharing.restoreFromUrl();
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
@@ -526,7 +441,10 @@ import { makeTheme, toJson, createVariableTools } from './workspace-tools.js';
     get workspace() { return workspace; },
     switchLanguage,
     refreshWorkshop,
-    addDeclaration,
     get notes() { return notes; },
+    get custom() { return custom; },
+    get answerPreview() { return answerPreview; },
+    exportSession: () => custom.exportSession(),
+    importSession: payload => custom.importSession(payload),
   };
 })();

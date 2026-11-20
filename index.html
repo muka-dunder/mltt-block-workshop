@@ -17,14 +17,16 @@
     <select id="levelSelect" aria-label="Select level"></select>
     <button id="nextBtn2" class="ghost" title="Next level">▶</button>
   </div>
-  <select id="languageSelect" aria-label="Language"><option value="en">English</option><option value="zh-CN">简体中文</option></select>
+  <div class="workspace-controls">
+    <select id="modeSelect" aria-label="Canvas mode"><option value="level">关卡模式</option><option value="custom">自定义模式</option></select>
+    <select id="languageSelect" aria-label="Language"><option value="en">English</option><option value="zh-CN">简体中文</option></select>
+  </div>
   <div class="actions">
+    <button id="shareBtn" class="ghost" type="button">分享当前局面</button>
     <button id="libraryToggle" class="ghost" type="button">全部积木</button>
     <button id="checkBtn" class="primary">Check</button>
-    <button id="hintBtn" class="ghost">Hint</button>
     <button id="resetBtn" class="ghost">Reset</button>
   </div>
-  <div class="stars" id="stars" title="Stars for this level">☆☆☆</div>
 </header>
 
 <main>
@@ -34,30 +36,13 @@
       <summary><span data-workshop-text="workshopTitle">构造工作坊</span></summary>
       <div class="workshop-content">
         <p id="levelStory" class="story"></p>
+        <button id="viewAnswerBtn" class="ghost view-answer" type="button">查看答案</button>
         <section aria-labelledby="notesTitle">
           <h2 id="notesTitle" data-workshop-text="notesTitle">画布注释</h2>
-          <div class="declaration-actions">
+          <div class="note-actions">
             <button id="addNote" type="button" data-workshop-text="addNote">＋ 注释</button>
-            <button id="restoreTutorial" type="button" data-workshop-text="restoreTutorial">恢复关卡解说</button>
-            <button id="clearNotes" type="button" data-workshop-text="clearNotes">清空我的笔记</button>
           </div>
           <small data-workshop-text="notesHelp">注释可以拖动、折叠和附着到积木。你的笔记会自动保存，重置答案也会保留。</small>
-        </section>
-        <section aria-labelledby="symbolsTitle">
-          <h2 id="symbolsTitle" data-workshop-text="symbolsTitle">符号</h2>
-          <input id="symbolSearch" type="search" placeholder="搜索符号" aria-label="搜索符号" autocomplete="off">
-          <div id="symbolList" class="symbol-list"></div>
-          <small data-workshop-text="symbolHelp">点击符号在画布创建引用，也可从左侧直接拖出。</small>
-        </section>
-        <section aria-labelledby="declarationsTitle">
-          <h2 id="declarationsTitle" data-workshop-text="declarationsTitle">自己的声明</h2>
-          <div class="declaration-actions">
-            <button id="addAssumption" type="button" data-workshop-text="addAssumption">＋ 假设</button>
-            <button id="addDefinition" type="button" data-workshop-text="addDefinition">＋ 定义</button>
-            <button id="addAxiom" type="button" data-workshop-text="addAxiom">＋ 公理</button>
-          </div>
-          <small data-workshop-text="declarationHelp">把类型和定义体拖进声明积木，检查后即可引用。</small>
-          <div id="declarationList" class="declaration-list" aria-live="polite"></div>
         </section>
         <section aria-labelledby="selectionTitle">
           <h2 id="selectionTitle" data-workshop-text="selectionTitle">所选项的类型</h2>
@@ -66,13 +51,11 @@
       </div>
     </details>
   </aside>
-  <ol id="hintBox" class="hint-float"></ol>
   <div id="status" class="status idle">Drag a term into the answer slot on the canvas, then press Check.</div>
 </main>
 
 <div id="overlay" class="overlay">
   <div class="win">
-    <div class="win-stars" id="winStars">★★★</div>
     <div class="win-text" id="winText"></div>
     <div class="win-actions">
       <button id="winClose" class="ghost">Stay here</button>

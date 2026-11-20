@@ -6,6 +6,13 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
   const en = {
+    contextEscapes: 'Conditions belong inside their judgment or inference. Put shared conditions on an outer card.',
+    contextMismatch: 'Condition {name} has a different type from the enclosing context.',
+    premiseCount: 'This rule requires {expected} premises; the card has {actual}.',
+    ruleConclusionMismatch: 'The rule produces {expected}, but the submitted conclusion is {actual}.',
+    derivationRequired: 'Submit an inference card that establishes the required result.',
+    ruleMissing: 'Drag an inference rule into the slot beside the line.',
+    ruleInvalid: 'This slot needs an inference-rule block.',
     declarationName: 'Enter a symbol name without spaces or colons',
     declarationDuplicate: 'Symbol name is already used: {name}',
     declarationKind: 'Unknown declaration kind',
@@ -49,6 +56,13 @@
     requiredBlock: 'This level requires the {name} block'
   };
   const zhCN = {
+    contextEscapes: '条件只能在其判断或推导的作用域内使用；请把共同条件放在外层卡片。',
+    contextMismatch: '条件 {name} 与外层条件的类型不一致。',
+    premiseCount: '此规则需要 {expected} 个前提，当前有 {actual} 个。',
+    ruleConclusionMismatch: '规则推出的结果应为 {expected}，提交的结论是 {actual}。',
+    derivationRequired: '请提交一张能得到所需结果的推导卡。',
+    ruleMissing: '请把推导规则积木放进横线旁的规则槽。',
+    ruleInvalid: '这个位置需要推导规则积木。',
     declarationName: '请填写符号名称，名称中不能有空格或冒号。',
     declarationDuplicate: '符号名称已被使用：{name}',
     declarationKind: '无法识别的声明种类。',

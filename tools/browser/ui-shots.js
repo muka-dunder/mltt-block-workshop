@@ -77,7 +77,7 @@ async function buildL10(page) {
 async function submitAnswer(page) {
   return page.evaluate(() => {
     const ws = Blockly.common.getMainWorkspace();
-    const ans = ws.getBlocksByType('tt_answer', false)[0];
+    const ans = ws.getBlocksByType('tt_problem', false)[0];
     if (!ans) return { error: 'no answer slot' };
     const tops = ws.getTopBlocks(false).filter((b) => b !== ans && b.outputConnection);
     if (tops.length === 1) {

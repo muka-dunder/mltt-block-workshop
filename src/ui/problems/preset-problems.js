@@ -148,6 +148,7 @@ function ensurePreset(workspace, level, problem) {
       const old = block; block = make('tt_judgment'); attach(parent, input, block);
       if (old) attach(block, 'TERM', old);
     }
+    block.ttContexts.setCount(0);
     freeze(block, true); fixedExpression(block, 'TYPE', type); return block;
   }
   if (level.starterBlock) {

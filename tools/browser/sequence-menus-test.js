@@ -22,17 +22,18 @@ const { chromium } = require('playwright');
       const command = (id, block) => registry.getItem(id).callback({ block });
       const judgment = make('tt_judgment');
       judgment.moveBy(60, 480);
-      command('mltt_context_add', judgment); command('mltt_context_add', judgment);
+      command('mltt_context_add', judgment);
       const judgmentCount = judgment.ttContexts.count;
       const rule = make('tt_rule_app');
       rule.moveBy(60, 60);
-      for (let i = 0; i < 3; i++) command('mltt_context_add', rule);
+      for (let i = 0; i < 2; i++) command('mltt_context_add', rule);
       const context = rule.ttContexts;
       const bindings = ['a', 'b', 'c'].map((name, i) => {
         const b = make('tt_binding'); b.setFieldValue(name, 'NAME');
         b.getInput('TYPE').connection.connect(make('tt_U').outputConnection);
         rule.getInput('CONTEXT' + i).connection.connect(b.outputConnection); return b.id;
       });
+      command('mltt_premise_add', rule);
       command('mltt_premise_add', rule);
       const premises = ['F', 'A', 'P2'].map(input => {
         const b = make('tt_star'); rule.getInput(input).connection.connect(b.outputConnection); return b.id;

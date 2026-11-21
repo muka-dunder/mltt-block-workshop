@@ -39,7 +39,7 @@
       this.setColour('#91c5b7');
       global.BlockSequence.installContexts(this, 'CONTEXT_END');
       global.BlockSequence.install(this, { name: i => i === 0 ? 'F' : i === 1 ? 'A' : 'P' + i,
-        breakName: i => 'PREMISE_END' + i, before: 'BAR_ROW', state: 'premiseCount', initial: 2, endRow: true });
+        breakName: i => 'PREMISE_END' + i, before: 'BAR_ROW', state: 'premiseCount', initial: 1, endRow: true });
       Object.defineProperty(this, 'ttPremiseCount', { get: () => this.ttItemCount });
       let timer;
       this.setOnChange(event => {

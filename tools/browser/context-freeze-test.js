@@ -22,6 +22,7 @@ const { chromium } = require('playwright');
       const make = type => { const block = w.newBlock(type); block.initSvg(); block.render(); return block; };
       const connect = (parent, name, child) => parent.getInput(name).connection.connect(child.outputConnection);
       const root = make('tt_problem'), judgment = make('tt_judgment'), context = judgment.ttContexts;
+      context.setCount(0);
       const emptyState = Blockly.serialization.blocks.save(judgment);
       const emptyCopy = Blockly.serialization.blocks.append(emptyState, w);
       const emptyRoundTrip = emptyCopy.ttContexts.count === 0 && emptyCopy.getField('EMPTY_CONTEXT').isVisible() && !emptyCopy.getInput('CONTEXT0');

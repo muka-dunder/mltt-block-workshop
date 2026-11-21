@@ -131,7 +131,7 @@
 
   function installContexts(block, before) {
     return install(block, { kind: 'context', name: i => 'CONTEXT' + i, breakName: i => 'CONTEXT_ITEM_END' + i,
-      check: 'ContextDeclaration', state: 'contextCount', initial: 0, empty: 'EMPTY_CONTEXT', before });
+      check: 'ContextDeclaration', state: 'contextCount', initial: 1, empty: 'EMPTY_CONTEXT', before });
   }
   function selection(block) {
     let child = block;

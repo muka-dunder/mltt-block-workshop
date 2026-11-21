@@ -45,6 +45,12 @@ export function createNotes({ workspace, host, locale, getLevel, getAnswer, onCh
     try { localStorage.setItem(storageKey(levelId), JSON.stringify(items)); } catch (_) { /* Notes remain usable when storage is unavailable. */ }
     if (notify) onChange?.();
   }
+  function fitTutorial(note) {
+    if (!note.tutorial || note.manualSize) return;
+    const available = host.clientWidth - (workspace.getFlyout()?.getWidth() || 0) - 32;
+    note.width = Math.round(Math.min(520, Math.max(220, available * 0.55)));
+    note.height = Math.min(720, Math.max(320, host.clientHeight - 64));
+  }
   function layout() {
     if (destroyed) return;
     const rect = host.getBoundingClientRect(), parent = host.parentElement.getBoundingClientRect();
@@ -53,6 +59,9 @@ export function createNotes({ workspace, host, locale, getLevel, getAnswer, onCh
     for (const note of items) {
       const card = cards.get(note.id);
       if (!card) continue;
+      fitTutorial(note);
+      card.style.width = note.width + 'px';
+      card.style.height = (note.collapsed ? 38 : note.height) + 'px';
       const p = worldPosition(note);
       Object.assign(card.style, { left: origin.x + p.x * workspace.scale + 'px', top: origin.y + p.y * workspace.scale + 'px' });
     }
@@ -129,6 +138,7 @@ export function createNotes({ workspace, host, locale, getLevel, getAnswer, onCh
       const startX = e.clientX, startY = e.clientY, startWidth = note.width, startHeight = note.height;
       resizeHandle.setPointerCapture(e.pointerId);
       const move = event => {
+        note.manualSize = true;
         note.width = Math.max(180, startWidth + event.clientX - startX);
         note.height = Math.max(100, startHeight + event.clientY - startY);
         card.style.width = note.width + 'px'; card.style.height = note.height + 'px';
@@ -160,9 +170,7 @@ export function createNotes({ workspace, host, locale, getLevel, getAnswer, onCh
   function resetTutorial(note) {
     note.anchor = 'answer'; note.blockId = getAnswer()?.id;
     note.dx = (getAnswer()?.getHeightWidth().width || 0) + 24 / workspace.scale; note.dy = 0;
-    const available = host.clientWidth - (workspace.getFlyout()?.getWidth() || 0) - 32;
-    note.width = Math.min(520, Math.max(220, available * 0.55));
-    note.height = Math.min(720, Math.max(320, host.clientHeight - 64)); note.collapsed = false;
+    note.manualSize = false; fitTutorial(note); note.collapsed = false;
     note.tutorialVersion = 6; note.placement = 'right';
     Object.assign(note, worldPosition(note));
   }
@@ -172,7 +180,7 @@ export function createNotes({ workspace, host, locale, getLevel, getAnswer, onCh
     let shelf = workspace.getFlyout()?.getWidth() || 0;
     let available = host.clientWidth - shelf - 32;
     if (note.placement === 'right') {
-      note.width = Math.min(note.width, Math.max(220, available * 0.55));
+      fitTutorial(note);
       updateCard(note);
     }
     shelf = workspace.getFlyout()?.getWidth() || 0;

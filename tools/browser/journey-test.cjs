@@ -113,7 +113,11 @@ const { chromium } = require('playwright');
       note.setAttribute('style', style);
       return visible && status.parentElement === document.body && rect.top < document.querySelector('main').getBoundingClientRect().top;
     }), 'Feedback uses a page-level toast above the canvas');
-    await page.clock.fastForward(8001);
+    // Checking can queue another debounced type update. Let it finish, then
+    // advance timers normally: fastForward fires missed timers at the end of
+    // the jump and would start a fresh toast there instead of at its due time.
+    await page.clock.runFor(250);
+    await page.clock.runFor(8001);
     assert.equal(await page.locator('#status').isVisible(), false, 'Feedback disappears automatically');
     const zoomIn = await page.evaluate(() => {
       const control = document.querySelector('.blocklyZoomIn');

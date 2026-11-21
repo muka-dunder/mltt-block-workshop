@@ -20,9 +20,9 @@
     opts = opts || {};
     if (!j) fail('E_EMPTY', 'No block here yet', null, null, 'noBlock');
     const src = j.id;
-    if (opts.contextual && j.inputs?.CONTEXT) {
+    if (opts.contextual && entryChecking.hasContext(j)) {
       const aliases = new Map(opts.bindingAliases || []);
-      for (const binding of entryChecking.contextEntries(j.inputs.CONTEXT)) {
+      for (const binding of entryChecking.contextEntries(j)) {
         const name = String(binding.fields?.NAME || '').trim();
         const target = [...scope].reverse().find(entry => entry.name === name);
         if (!target) fail('E_SCOPE', 'A context cannot escape its card', { src: binding.id }, null, 'contextEscapes');
@@ -208,7 +208,7 @@
   function checkWorkshop(level, blockJson, declarationBlocks, inspection) {
     declarationBlocks = declarationBlocks || [];
     const declarations = [], symbols = new Map(), dependencies = new Map();
-    const canonical = blockJson?.entryVersion === 2 || hasBlockType(blockJson, 'tt_context') ||
+    const canonical = blockJson?.entryVersion === 2 || entryChecking.hasContext(blockJson) ||
       (level.entry && blockJson?.type === 'tt_problem' && !Object.hasOwn(blockJson.inputs || {}, 'TYPE'));
     try {
       const ctx = canonical ? [] : buildCtx(level.givens);

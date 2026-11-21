@@ -9,16 +9,22 @@
 
   function entries(context) {
     if (!context) return [];
-    if (context.type !== 'tt_context') fail('E_REQUIRE', 'Expected a context list', { src: context.id }, null, 'unknownBlock', { type: context.type });
     const inputs = context.inputs || {};
-    const count = context.contextCount ?? context.extraState?.count ?? Math.max(0, ...Object.keys(inputs).filter(k => /^ITEM\d+$/.test(k)).map(k => Number(k.slice(4)) + 1));
+    const count = context.contextCount ?? context.extraState?.contextCount ?? 0;
     if (!Number.isInteger(count) || count < 0 || count > 2000) fail('E_REQUIRE', 'Invalid context size', { src: context.id }, null, 'emptySlot');
     return Array.from({ length: count }, (_, i) => {
-      const declaration = inputs['ITEM' + i];
+      const declaration = inputs['CONTEXT' + i];
       if (!declaration) fail('E_EMPTY', 'Fill every context entry', { src: context.id }, null, 'emptySlot');
       if (declaration.type !== 'tt_binding') fail('E_REQUIRE', 'Expected a binding declaration', { src: declaration.id }, null, 'unknownBlock', { type: declaration.type });
       return declaration;
     });
+  }
+  const hasContext = j => j && (j.contextCount !== undefined || j.extraState?.contextCount !== undefined);
+  function stripContext(j) {
+    const copy = { ...j, inputs: { ...j.inputs }, extraState: { ...j.extraState } };
+    delete copy.contextCount; delete copy.extraState.contextCount;
+    for (const input of Object.keys(copy.inputs)) if (/^CONTEXT\d+$/.test(input)) delete copy.inputs[input];
+    return copy;
   }
 
   function openContext(context, ctx, scope, opts, allowFresh) {
@@ -55,10 +61,9 @@
   // Check every editable judgment and conclusion in the entry, including nested cards.
   function validateEntry(j, ctx, scope, opts, expected) {
     if (!j || j.type === 'tt_hole') fail('E_EMPTY', 'A slot is still empty', { src: j?.id }, null, 'emptySlot');
-    if (opts.contextual && j.inputs?.CONTEXT) {
-      const opened = openContext(j.inputs.CONTEXT, ctx, scope, opts, false);
-      const copy = { ...j, inputs: { ...j.inputs } }; delete copy.inputs.CONTEXT;
-      return validateEntry(copy, opened.ctx, opened.scope, opened.opts, expected);
+    if (opts.contextual && hasContext(j)) {
+      const opened = openContext(j, ctx, scope, opts, false);
+      return validateEntry(stripContext(j), opened.ctx, opened.scope, opened.opts, expected);
     }
     const inputs = j.inputs || {}, term = () => elabBlock(j, scope, opts);
     const value = block => evalTm(envOf(ctx), elabBlock(block, scope, opts));
@@ -170,9 +175,9 @@
     const root = problem?.type === 'tt_problem' ? problem.inputs?.TERM : problem;
     let entry = root, term, result;
     try {
-      if (root?.inputs?.CONTEXT) {
-        ({ ctx, scope, opts } = openContext(root.inputs.CONTEXT, ctx, scope, opts, true));
-        entry = { ...root, inputs: { ...root.inputs } }; delete entry.inputs.CONTEXT;
+      if (hasContext(root)) {
+        ({ ctx, scope, opts } = openContext(root, ctx, scope, opts, true));
+        entry = stripContext(root);
       }
       validateEntry(entry, ctx, scope, opts);
       term = elabBlock(entry, scope, opts);
@@ -196,5 +201,5 @@
     }
     return result;
   }
-  return { validateEntry, checkExplicitEntry, contextEntries: entries, premiseNames };
+  return { validateEntry, checkExplicitEntry, contextEntries: entries, hasContext, premiseNames };
 });

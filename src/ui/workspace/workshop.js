@@ -4,13 +4,13 @@ import { refreshRuleCards } from './rule-feedback.js';
 const workshopMessages = {
   'zh-CN': {
     workshopTitle: '构造工作坊', selectionTitle: '类型反馈',
-    common: '积木：本关常用 ▾', all: '积木：全部 ▾',
+    common: '积木：本关常用', all: '积木：全部', libraryLabel: '积木范围',
     known: '已知符号', local: '局部变量', select: '选择一个积木，查看它的类型。', pending: '尚未完成', answerTitle: '题目', locateAnswer: '定位题目',
     dependent: '类型正确；使用额外假设：', selected: '当前目标：', cannotInfer: '这个构造需要目标类型；把它放进答案或类型标注积木后检查。',
     notesTitle: '画布注释', addNote: '+ 注释', notesHelp: '注释可以拖动、折叠和附着到积木。你的笔记会自动保存，重置答案也会保留。', },
   en: {
     workshopTitle: 'Construction workshop', selectionTitle: 'Type feedback',
-    common: 'Blocks: suggested ▾', all: 'Blocks: all ▾',
+    common: 'Blocks: suggested', all: 'Blocks: all', libraryLabel: 'Block library',
     known: 'Given symbols', local: 'Local variables', select: 'Select a block to inspect its type.', pending: 'Incomplete', answerTitle: 'Problems', locateAnswer: 'Locate problem',
     dependent: 'Type correct; uses extra assumptions: ', selected: 'Current goal: ', cannotInfer: 'This construction needs an expected type. Put it in the answer or a type annotation and check it.',
     notesTitle: 'Canvas notes', addNote: '+ Note', notesHelp: 'Move, collapse, or attach notes to blocks. Your notes are saved automatically and survive answer resets.', }
@@ -28,7 +28,7 @@ export function createWorkshop({ getWorkspace, getLevel, ensureAnswer, goalText,
 
   // ---------- Toolbox ----------
   const GROUPS = [
-    { name: 'Rules', colour: '#5894aa', types: ['tt_context', 'tt_binding', 'tt_rule_app', 'tt_judgment', 'tt_rule_pi_elim', 'tt_rule_theorem'] },
+    { name: 'Rules', colour: '#5894aa', types: ['tt_binding', 'tt_rule_app', 'tt_judgment', 'tt_rule_pi_elim', 'tt_rule_theorem'] },
     { name: 'Types', colour: '#5b8def', types: ['tt_pi', 'tt_sigma', 'tt_id', 'tt_nat', 'tt_bool', 'tt_empty', 'tt_unit', 'tt_U'] },
     { name: 'Terms', colour: '#4f9d76', types: ['tt_lam', 'tt_var', 'tt_app', 'tt_pair', 'tt_zero', 'tt_suc', 'tt_true', 'tt_false', 'tt_star', 'tt_refl', 'tt_let', 'tt_annot', 'tt_hole'] },
     { name: 'Eliminators', colour: '#c47a3d', types: ['tt_natrec', 'tt_unitrec', 'tt_sigma_ind', 'tt_J', 'tt_if', 'tt_absurd'] },
@@ -80,7 +80,7 @@ export function createWorkshop({ getWorkspace, getLevel, ensureAnswer, goalText,
       xml += '<block type="tt_var"><field name="REF">' + esc(symbol.value) + '</field></block>';
     }
     for (const g of GROUPS) {
-      const types = g.types.filter((t) => (t !== 'tt_var' || getLevel().custom || allBlocks) && (getLevel().custom || allBlocks || pal.has(t) || ['tt_context', 'tt_binding'].includes(t)
+      const types = g.types.filter((t) => (t !== 'tt_var' || getLevel().custom || allBlocks) && (getLevel().custom || allBlocks || pal.has(t) || t === 'tt_binding'
         || ((t === 'tt_rule_pi_elim' || t === 'tt_rule_theorem') && (pal.has('tt_rule_app') || pal.has('tt_rule_judgments')))));
       if (!types.length) continue;
       xml += '<label text="' + esc(t(g.name)) + '"></label>';
@@ -148,8 +148,11 @@ export function createWorkshop({ getWorkspace, getLevel, ensureAnswer, goalText,
 
   function renderLanguage() {
     document.querySelectorAll('[data-workshop-text]').forEach(el => { el.textContent = wt(el.dataset.workshopText); });
-    $('#libraryToggle').textContent = wt(getLevel()?.custom || allBlocks ? 'all' : 'common');
-    $('#libraryToggle').disabled = !!getLevel()?.custom;
+    const library = $('#librarySelect');
+    for (const option of library.options) option.textContent = wt(option.value);
+    library.setAttribute('aria-label', wt('libraryLabel'));
+    library.value = getLevel()?.custom || allBlocks ? 'all' : 'common';
+    library.disabled = !!getLevel()?.custom;
 
   }
 
@@ -160,9 +163,8 @@ export function createWorkshop({ getWorkspace, getLevel, ensureAnswer, goalText,
       getWorkspace().centerOnBlock(answer.id);
       requestAnimationFrame(() => { if (answer.workspace) Blockly.common.setSelected(answer); });
     });
-    $('#libraryToggle').addEventListener('click', () => {
-      allBlocks = !allBlocks;
-      $('#libraryToggle').textContent = wt(allBlocks ? 'all' : 'common');
+    $('#librarySelect').addEventListener('change', event => {
+      allBlocks = event.target.value === 'all';
       refreshWorkshop();
     });
   }

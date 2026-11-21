@@ -70,7 +70,7 @@ header {
 .workspace-controls select { min-width: 0; }
 .workspace-controls #modeSelect { width: 132px; }
 .workspace-controls #languageSelect { width: 96px; }
-#libraryToggle { width: 156px; }
+.workspace-controls #librarySelect { width: 156px; }
 
 select {
   background: #1a2130;
@@ -315,10 +315,10 @@ button:focus-visible, summary:focus-visible { outline: 2px solid var(--accent2);
   .brand span { display: none; }
   .level-title { font-size: 14px; }
   .workspace-controls { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }
-  .workspace-controls #modeSelect, .workspace-controls #languageSelect { width: 100%; max-width: none; }
-  .actions { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; width: 100%; gap: 6px; }
+  .workspace-controls #modeSelect, .workspace-controls #languageSelect, .workspace-controls #librarySelect { width: 100%; max-width: none; }
+  .workspace-controls #librarySelect { grid-column: 1 / -1; }
+  .actions { display: grid; grid-template-columns: repeat(3, 1fr); width: 100%; gap: 6px; }
   .actions button { padding: 7px 9px; min-width: 0; font-size: 12px; }
-  #libraryToggle { width: 100%; overflow: hidden; text-overflow: ellipsis; }
   .status { font-size: 12px; }
 }
 

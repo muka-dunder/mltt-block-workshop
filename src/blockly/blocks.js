@@ -92,17 +92,23 @@
         .appendField('Π (')
         .appendField(nameField('x'), 'XNAME')
         .appendField(':');
+      this.appendEndRowInput('TYPE_BREAK').setVisible(false);
       this.appendValueInput('BODY').appendField(') →');
       this.setInputsInline(true);
       this.setOutput(true, null);
       this.setTooltip(() => t('block.piTooltip'));
     },
     refreshTypeLayout() {
-      const width = this.inputList.reduce((sum, input) => sum + input.fieldRow.reduce((n, field) =>
+      const width = this.inputList.filter(input => input.name !== 'TYPE_BREAK').reduce((sum, input) => sum + input.fieldRow.reduce((n, field) =>
         n + field.getSize().width + 8, 0) + (input.connection?.targetBlock()?.getHeightWidth().width || 24), 28);
       const viewWidth = this.workspace.getMetrics()?.viewWidth || 800;
       const inline = width <= Math.min(480, Math.max(260, viewWidth * 0.7));
-      if (this.inputsInline !== inline) this.setInputsInline(inline);
+      if (!this.inputsInline) this.setInputsInline(true);
+      const lineBreak = this.getInput('TYPE_BREAK');
+      if (lineBreak.isVisible() === inline) {
+        lineBreak.setVisible(!inline);
+        if (this.rendered) this.render();
+      }
     }
   };
 
@@ -114,6 +120,7 @@
         .appendField('Σ (')
         .appendField(nameField('x'), 'XNAME')
         .appendField(':');
+      this.appendEndRowInput('TYPE_BREAK').setVisible(false);
       this.appendValueInput('BODY').appendField(') ×');
       this.setInputsInline(true);
       this.setOutput(true, null);

@@ -20,7 +20,7 @@
 
   function applyLayout(block) {
     if (!block.workspace || block.workspace.getBlockById(block.id) !== block || block.ttRootRule) return;
-    if (!block.ttContextDisplay) block.getField('CTX')?.setVisible(!block.getInputTargetBlock('CONTEXT'));
+    if (!block.ttContextDisplay) block.getField('CTX')?.setVisible(true);
     const viewWidth = block.workspace.isFlyout ? 800 : block.workspace.getMetrics()?.viewWidth || 800;
     const threshold = Math.min(420, Math.max(220, viewWidth * 0.55));
     const stacked = block.ttLayout === 'stacked' || (block.ttLayout === 'auto' && estimatedWidth(block) > threshold);
@@ -68,7 +68,7 @@
 
   B.Blocks.tt_judgment = {
     init() {
-      this.appendValueInput('CONTEXT').setCheck('Context').appendField(new B.FieldLabel('Γ'), 'CTX');
+      this.appendDummyInput('CONTEXT_HEADER').appendField('Γ', 'CTX').appendField('∅', 'EMPTY_CONTEXT');
       this.appendEndRowInput('LAYOUT_BREAK_CONTEXT');
       this.appendDummyInput('TURNSTILE').appendField('⊢');
       this.appendEndRowInput('LAYOUT_BREAK_TURNSTILE');
@@ -77,34 +77,9 @@
       this.setInputsInline(true);
       this.setOutput(true, null);
       this.setColour('#d1c4e9');
-      this.setTooltip(() => text('在给定条件下构造一个项。右键可选择自动、单行或分行排版。', 'Construct a term in its context. Right-click to choose automatic, inline, or stacked layout.'));
+      this.setTooltip(() => text('在给定条件下构造一个项。右键可增删上下文，也可选择自动、单行或分行排版。', 'Construct a term in its context. Right-click to add or remove context entries, or choose automatic, inline, or stacked layout.'));
       installLayout(this);
-      const saveLayout = this.saveExtraState, loadLayout = this.loadExtraState;
-      this.saveExtraState = function () {
-        return { ...saveLayout.call(this), context: this.ttJudgmentContext || null };
-      };
-      this.loadExtraState = function (state) {
-        loadLayout.call(this, state);
-        if (state?.context) this.configureJudgmentContext(state.context.binders, state.context.lines, state.context.uids);
-      };
-    },
-    configureJudgmentContext(binders = [], lines = [], uids = []) {
-      this.ttJudgmentContext = { binders, lines, uids };
-      this.ttContextDisplay = true;
-      for (const input of [...this.inputList]) if (input.name.startsWith('LOCAL_CONTEXT_')) this.removeInput(input.name);
-      this.ttBinds = { TERM: uids, TYPE: uids }; this.ttNameFields = {};
-      this.getField('CTX').setValue(lines.join(', ') || (binders.length ? '' : 'Γ'));
-      this.getInput('CONTEXT').setVisible(lines.length > 0 || binders.length === 0);
-      binders.forEach((binder, i) => {
-        const Field = global.FieldLocalVar || B.FieldTextInput;
-        const field = new Field(binder.name);
-        this.appendDummyInput('LOCAL_CONTEXT_' + i).appendField(field, 'BNAME' + i)
-          .appendField(' : ' + binder.tyText);
-        this.ttNameFields[uids[i]] = 'BNAME' + i;
-        this.moveInputBefore('LOCAL_CONTEXT_' + i, 'LAYOUT_BREAK_CONTEXT');
-        field.EDITABLE = false; field.updateEditable();
-      });
-      if (this.rendered) this.render();
+      global.BlockSequence.installContexts(this, 'LAYOUT_BREAK_CONTEXT');
     },
   };
 

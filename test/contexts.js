@@ -7,18 +7,22 @@ const b = (type, inputs = {}, fields = {}, id = 'c' + next++) => ({ type, inputs
 const ref = declaration => b('tt_var', {}, { REF: 'b' + declaration.id + ':decl␟' + declaration.fields.NAME });
 const universe = () => b('tt_U', {}, { LEVEL: '0' });
 const binding = (name, type) => b('tt_binding', { TYPE: type }, { NAME: name });
-const context = declarations => ({ ...b('tt_context', Object.fromEntries(declarations.map((d, i) => ['ITEM' + i, d]))), contextCount: declarations.length });
-const judgment = (term, type, declarations) => b('tt_judgment', { TERM: term, TYPE: type, ...(declarations ? { CONTEXT: context(declarations) } : {}) });
+const withContext = (card, declarations) => {
+  if (!declarations) return card;
+  card.contextCount = declarations.length;
+  declarations.forEach((binding, i) => { card.inputs['CONTEXT' + i] = binding; }); return card;
+};
+const judgment = (term, type, declarations) => withContext(b('tt_judgment', { TERM: term, TYPE: type }), declarations);
 const problem = term => ({ ...b('tt_problem', { TERM: term }), entryVersion: 2 });
 const custom = (term, declarations = []) => M.checkCustomProblem(problem(term), declarations);
 const pi = (dom, cod) => {
   const j = b('tt_pi', { DOM: dom, BODY: cod }); j.binds = { BODY: ['pi-' + j.id] }; j.names = { ['pi-' + j.id]: 'z' }; return j;
 };
 const app = (f, a) => b('tt_app', { F: f, A: a });
-const rule = (premises, result, chosen = b('tt_rule_pi_elim'), declarations) => ({
+const rule = (premises, result, chosen = b('tt_rule_pi_elim'), declarations) => withContext({
   ...b('tt_rule_app', { ...Object.fromEntries(premises.map((p, i) => [i === 0 ? 'F' : i === 1 ? 'A' : 'P' + i, p])),
-    RULE: chosen, RESULT: result, ...(declarations ? { CONTEXT: context(declarations) } : {}) }), premiseCount: premises.length,
-});
+    RULE: chosen, RESULT: result }), premiseCount: premises.length,
+}, declarations);
 const A = binding('A', universe()), x = binding('x', ref(A));
 assert(custom(judgment(ref(x), ref(A), [A, x])).ok, 'A context can introduce a type and its element');
 const family = binding('B', pi(ref(A), universe()));
@@ -27,8 +31,8 @@ const value = binding('b', ba());
 assert(custom(judgment(ref(value), ba(), [A, family, a, value])).ok, 'Later context entries can depend on earlier entries');
 assert(!custom(judgment(ref(x), ref(A), [x, A])).ok, 'Forward dependencies are rejected');
 assert(!custom(judgment(ref(x), ref(A), [A, A, x])).ok, 'Repeated names in one list are rejected');
-const hole = context([A]); hole.contextCount = 2;
-assert(!custom(b('tt_judgment', { CONTEXT: hole, TERM: ref(x), TYPE: ref(A) })).ok, 'An unfilled list item is a hole');
+const hole = judgment(ref(x), ref(A), [A]); hole.contextCount = 2;
+assert(!custom(hole).ok, 'An unfilled list item is a hole');
 assert(!custom(judgment(b('tt_var', {}, { REF: 'wrong-uid␟x' }), ref(A), [A, x])).ok, 'A foreign UID cannot borrow a same-named variable');
 const B = binding('C', universe()), f = binding('f', pi(ref(A), ref(B)));
 const shared = [A, B, f, x];
@@ -64,7 +68,7 @@ function remap(j) {
 }
 repeated.forEach(remap);
 const repeatedRule = application();
-repeatedRule.inputs.F.inputs.CONTEXT = context(repeated);
+withContext(repeatedRule.inputs.F, repeated);
 assert(custom(repeatedRule).ok, 'A repeated equivalent context is checked without introducing duplicate variables');
 repeated[0].inputs.TYPE = b('tt_nat');
 assert(!custom(repeatedRule).ok, 'An incompatible repeated context is rejected');

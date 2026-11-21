@@ -51,8 +51,8 @@ for (const key of Object.keys(errorMessages.en)) {
     await page.selectOption('#languageSelect', 'en');
     await page.selectOption('#levelSelect', '0');
     const binder = await page.evaluateHandle(() => {
-      const context = __mltt.workspace.getBlocksByType('tt_problem')[0].getInputTargetBlock('TERM').getInputTargetBlock('CONTEXT');
-      return context.getChildren(false).find(block => block.type === 'tt_binding' && block.getFieldValue('NAME') === 'x').getField('NAME').getSvgRoot();
+      const context = __mltt.workspace.getBlocksByType('tt_problem')[0].getInputTargetBlock('TERM');
+      return context.contextChildren().find(block => block.type === 'tt_binding' && block.getFieldValue('NAME') === 'x').getField('NAME').getSvgRoot();
     });
     await binder.asElement().hover();
     await page.waitForFunction(() => {

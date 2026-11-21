@@ -1,10 +1,11 @@
 /* Game shell: Blockly workspace, levels, checking, progress. */
 import { createNotes } from './notes/notes.js';
+import { installPointerZoom } from './workspace/pointer-zoom.js';
 import { createWorkshop, wt } from './workspace/workshop.js';
 import { makeTheme, toJson, createVariableTools } from './workspace/workspace-tools.js';
 import { createCustomMode, configureLevelGlobals } from './problems/custom-mode.js';
 import { createSharing } from './sharing/share.js';
-import { ensurePresetProblem, migrateProblemContainers } from './problems/preset-problems.js';
+import { ensurePresetProblem } from './problems/preset-problems.js';
 import { createAnswerPreview } from './problems/solutions.js';
 
 (function () {
@@ -79,7 +80,7 @@ import { createAnswerPreview } from './problems/solutions.js';
       if (!custom?.active) configureLevelGlobals(state.level, givensList(), ctxWithBinder());
       window.BlockFreeze.withChanges(workspace, () => workspace.clear());
       workspace.updateToolbox(toolboxXml());
-      Blockly.serialization.workspaces.load(migrateProblemContainers(serialized), workspace);
+      Blockly.serialization.workspaces.load(serialized, workspace);
       answerBlock = ensureAnswer();
       workspace.setScale(view.scale);
       workspace.scroll(view.x, view.y);
@@ -227,12 +228,15 @@ import { createAnswerPreview } from './problems/solutions.js';
     if (!workspace || !answerBlock) return;
     if (state.level.starterBlock) {
       for (const block of answerBlock.getDescendants(false).reverse()) block.render();
-      const width = answerBlock.getSvgRoot().getBoundingClientRect().width;
-      const available = $('#blocklyDiv').clientWidth - (workspace.getFlyout()?.getWidth() || 0) - 24;
-      if (width > available) workspace.setScale(Math.max(0.6, workspace.scale * available / width * 0.95));
     }
     try { workspace.centerOnBlock(answerBlock.id); } catch (e) { /* ignore */ }
-    if (notes) notes.focusTutorial();
+    if (notes) {
+      notes.focusTutorial();
+      const centered = answerBlock;
+      requestAnimationFrame(() => {
+        if (answerBlock === centered && !state.loading) notes.focusTutorial();
+      });
+    }
   }
 
   function answerTerm() {
@@ -315,10 +319,11 @@ import { createAnswerPreview } from './problems/solutions.js';
       grid: { spacing: 26, length: 3, colour: '#1d2430', snap: false },
       zoom: { controls: true, wheel: true, startScale: 1, minScale: 0.35, maxScale: 1.6 },
       trashcan: true,
-      move: { scrollbars: true, drag: true, wheel: true },
+      move: { scrollbars: true, drag: true, wheel: false },
       sounds: false,
       media: window.BLOCKLY_MEDIA,
     });
+    installPointerZoom(workspace);
 
     // lexical-variables flydown system (hover a local variable to pop out a getter block).
     if (window.LexicalVariablesPlugin) {

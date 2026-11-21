@@ -70,87 +70,7 @@ function contextState(declarations, oldNames = []) {
       inputs: { TYPE: { block: termState(declaration.ty, scope) } } } };
     scope.push({ uid: bindingUid(id), name });
   });
-  return { state: { type: 'tt_context', id: freshId(), extraState: { count: declarations.length }, inputs }, scope };
-}
-
-function wrapLegacyRequirement(root) {
-  const old = root.inputs?.TYPE?.block || root.inputs?.TYPE?.shadow;
-  if (!root.inputs?.TYPE) return;
-  const submission = root.inputs.TERM?.block || root.inputs.TERM?.shadow;
-  const type = old?.type;
-  const expression = type?.startsWith('tt_requirement_')
-    ? old.inputs?.[type === 'tt_requirement_infer' ? 'EXPR' : 'TYPE'] : root.inputs.TYPE;
-  const judgment = { type: 'tt_judgment', id: freshId(), extraState: { layout: 'auto' }, inputs: {} };
-  if (type === 'tt_requirement_infer') {
-    if (expression) judgment.inputs.TERM = expression;
-    if (submission) judgment.inputs.TYPE = { block: submission };
-  } else {
-    if (expression) judgment.inputs.TYPE = expression;
-    if (submission) judgment.inputs.TERM = { block: submission };
-  }
-  if (type === 'tt_requirement_derivation' && ['tt_rule_app', 'tt_rule_judgments'].includes(submission?.type)) {
-    delete judgment.inputs.TERM; submission.inputs ||= {}; submission.inputs.RESULT ||= { block: judgment };
-  } else root.inputs.TERM = { block: judgment };
-  delete root.inputs.TYPE;
-}
-
-export function migrateProblemContainers(serialized) {
-  const copy = JSON.parse(JSON.stringify(serialized || {}));
-  const roots = [], maps = [];
-  function visit(value) {
-    if (!value || typeof value !== 'object') return;
-    if (value.type === 'tt_answer') value.type = 'tt_problem';
-    if (value.type === 'tt_problem') roots.push(value);
-    if (value.type === 'tt_judgment' && value.fields) delete value.fields.GOAL;
-    if (['tt_rule_app', 'tt_rule_judgments'].includes(value.type) && value.fields) {
-      for (const field of ['CONCLUSION', 'FTYPE', 'ATYPE', 'FPREFIX', 'APREFIX', 'RULE_TITLE']) delete value.fields[field];
-    }
-    for (const child of Object.values(value)) visit(child);
-  }
-  visit(copy);
-  for (const root of roots) {
-    const oldState = root.extraState || {};
-    wrapLegacyRequirement(root);
-    if (oldState.entryVersion === 2) continue;
-    const preset = oldState.preset || window.GAME_PROBLEM_PRESET?.id;
-    const level = window.LEVELS?.levels.find(level => level.id === preset);
-    if (!level) { root.extraState = { entryVersion: 2 }; continue; }
-    const names = level.givens.map(given => given.name).concat((oldState.binders || []).map(binding => binding.name));
-    let entry = root.inputs?.TERM?.block;
-    const existing = entry?.inputs?.CONTEXT?.block;
-    const existingBindings = existing?.type === 'tt_context' ? Object.entries(existing.inputs || {})
-      .filter(([input]) => /^ITEM\d+$/.test(input)).sort(([a], [b]) => Number(a.slice(4)) - Number(b.slice(4)))
-      .map(([, input]) => input.block) : [];
-    const built = existing?.type === 'tt_context' && existingBindings.length === declarationsFor(level).length && existingBindings.every(binding => binding?.type === 'tt_binding')
-      ? { state: existing, scope: existingBindings.map(binding => ({ uid: bindingUid(binding.id), name: binding.fields.NAME })) }
-      : contextState(declarationsFor(level), names);
-    if (!['tt_judgment', 'tt_rule_app', 'tt_rule_judgments'].includes(entry?.type)) {
-      entry = { type: 'tt_judgment', id: freshId(), extraState: { layout: 'auto' }, inputs: {
-        TYPE: { block: termState(level.goal, built.scope) }, ...(entry ? { TERM: { block: entry } } : {}) } };
-      root.inputs = { TERM: { block: entry } };
-    }
-    entry.inputs ||= {}; entry.inputs.CONTEXT = { block: built.state };
-    maps.push({ root, givens: built.scope.slice(0, level.givens.length),
-      old: new Map(built.scope.slice(level.givens.length).map((binding, i) => ['b' + root.id + ':v' + i, binding])) });
-    root.extraState = { entryVersion: 2 };
-    if (root.fields) for (const field of Object.keys(root.fields)) if (/^BNAME\d+$/.test(field)) delete root.fields[field];
-  }
-  function rewrite(value, mapping) {
-    if (!value || typeof value !== 'object') return;
-    if (value.type === 'tt_given') {
-      const binding = mapping.givens[Number(value.fields?.IDX)];
-      if (binding) { value.type = 'tt_var'; value.fields = { REF: ref(binding.uid, binding.name) }; }
-    } else if (value.type === 'tt_var') {
-      const raw = value.fields?.REF || '', binding = mapping.old.get(raw.split('␟')[0]);
-      if (binding) value.fields.REF = ref(binding.uid, binding.name);
-    } else if (value.type === 'tt_judgment') {
-      if (value.extraState) delete value.extraState.context;
-      if (value.fields) for (const field of Object.keys(value.fields)) if (field === 'CTX' || /^BNAME\d+$/.test(field)) delete value.fields[field];
-    }
-    for (const child of Object.values(value)) rewrite(child, mapping);
-  }
-  for (const mapping of maps) rewrite(maps.length === 1 ? copy : mapping.root, mapping);
-  return copy;
+  return { bindings: Object.values(inputs).map(input => input.block), scope };
 }
 
 function freeze(block, frozen, tree = false) {
@@ -184,14 +104,13 @@ function ensurePreset(workspace, level, problem) {
     const old = entry; entry = make(kind); attach(problem, 'TERM', entry);
     if (old && kind === 'tt_judgment') attach(entry, level.inferTerm ? 'TYPE' : 'TERM', old);
   }
-  let conditions = entry.getInputTargetBlock('CONTEXT');
+  let conditions = entry.contextChildren();
   let scope = [];
   const validContext = () => {
-    if (!conditions && declarations.length === 0) return true;
-    if (conditions?.type !== 'tt_context' || conditions.ttItemCount !== declarations.length) return false;
+    if (conditions.length !== declarations.length) return false;
     try {
       for (let i = 0; i < declarations.length; i++) {
-        const binding = conditions.getInputTargetBlock('ITEM' + i), type = binding?.getInputTargetBlock('TYPE');
+        const binding = conditions[i], type = binding?.getInputTargetBlock('TYPE');
         if (binding?.type !== 'tt_binding' || !type) return false;
         const prior = context.slice(0, i), got = M.elabBlock(toJson(type), scope, { nGivens: 0 });
         if (!M.conv(M.evalTm(M.envOf(prior), got), M.evalTm(M.envOf(prior), declarations[i].ty))) return false;
@@ -202,10 +121,15 @@ function ensurePreset(workspace, level, problem) {
   };
   if (!validContext()) {
     const built = contextState(declarations);
-    conditions = Blockly.serialization.blocks.append(built.state, workspace); scope = built.scope;
-    attach(entry, 'CONTEXT', conditions);
+    for (const binding of conditions) if (binding) { freeze(binding, false, true); binding.dispose(false); }
+    entry.ttContexts.setCount(declarations.length);
+    conditions = built.bindings.map((state, i) => {
+      const binding = Blockly.serialization.blocks.append(state, workspace); attach(entry, 'CONTEXT' + i, binding); return binding;
+    });
+    scope = built.scope;
   }
-  freeze(conditions, true, true); freeze(entry, true);
+  for (const binding of conditions) freeze(binding, true, true);
+  freeze(entry, true);
   function sameTerm(block, expression) {
     try {
       if (!block) return false;

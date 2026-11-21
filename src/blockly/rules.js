@@ -28,7 +28,7 @@
   }
 
   function initApplicationRule() {
-      this.appendValueInput('CONTEXT').setCheck('Context').appendField('Γ', 'CONTEXT_LABEL');
+      this.appendDummyInput('CONTEXT_HEADER').appendField('Γ', 'CONTEXT_LABEL').appendField('∅', 'EMPTY_CONTEXT');
       this.appendEndRowInput('CONTEXT_END');
       this.appendDummyInput('BAR_ROW').appendField(new FieldRuleBar(), 'BAR');
       this.appendValueInput('RULE').setCheck('InferenceRule');
@@ -37,6 +37,7 @@
       this.setInputsInline(true);
       this.setOutput(true, null);
       this.setColour('#91c5b7');
+      global.BlockSequence.installContexts(this, 'CONTEXT_END');
       global.BlockSequence.install(this, { name: i => i === 0 ? 'F' : i === 1 ? 'A' : 'P' + i,
         breakName: i => 'PREMISE_END' + i, before: 'BAR_ROW', state: 'premiseCount', initial: 2, endRow: true });
       Object.defineProperty(this, 'ttPremiseCount', { get: () => this.ttItemCount });
@@ -46,7 +47,6 @@
         clearTimeout(timer);
         timer = setTimeout(() => {
           if (this.workspace?.getBlockById(this.id) !== this) return;
-          this.getField('CONTEXT_LABEL')?.setVisible(!this.getInputTargetBlock('CONTEXT'));
           this.refreshSequenceLayout();
         }, 80);
       });

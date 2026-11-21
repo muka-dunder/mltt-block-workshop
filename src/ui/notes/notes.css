@@ -5,12 +5,12 @@
 .note-title { flex: 1; font-size: 12px; font-weight: 650; white-space: nowrap; }
 .note-header button { min-width: 24px; padding: 2px 5px; font-size: 14px; border: 0; background: transparent; color: #e3cd91; border-radius: 4px; }
 .note-header button:hover { background: #e7ce8422; }
-.note-card textarea { display: block; width: 100%; height: calc(100% - 37px); border: 0; outline-offset: -3px; padding: 10px 12px; margin: 0; resize: none; background: transparent; color: inherit; font: 12px/1.7 ui-sans-serif, system-ui, sans-serif; }
+.note-card textarea { display: block; width: 100%; height: calc(100% - 37px); border: 0; outline-offset: -3px; padding: 10px 12px; margin: 0; resize: none; background: transparent; color: inherit; font: 12px/1.7 ui-sans-serif, system-ui, sans-serif; color-scheme: dark; scrollbar-width: thin; scrollbar-color: #756748 #292619; }
 .note-card textarea::placeholder { color: #b8a77c; }
 .note-card.is-tutorial { background: #192b2b; border-color: #477b75; color: #cce8e1; }
 .note-card.is-tutorial .note-header { border-bottom-color: #477b7566; }
 .note-card.is-tutorial .note-header button { color: #9dd7ca; }
-.note-card.is-tutorial textarea { font-size: 14px; line-height: 1.8; padding: 14px 16px; }
+.note-card.is-tutorial textarea { font-size: 14px; line-height: 1.8; padding: 14px 16px; scrollbar-color: #477b75 #192b2b; }
 .note-card.is-tutorial .note-title { font-size: 13px; }
 .note-resize-handle { position: absolute; width: 16px; height: 16px; right: 0; bottom: 0; cursor: nwse-resize; touch-action: none; background: linear-gradient(135deg, transparent 55%, #a38e6177 56%, #a38e6177 62%, transparent 63%, transparent 72%, #a38e6177 73%, #a38e6177 79%, transparent 80%); }
 .note-card.is-collapsed { min-height: 38px; }

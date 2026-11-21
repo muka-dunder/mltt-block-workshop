@@ -39,7 +39,7 @@ export function createAnswerPreview({ getWorkspace, getLevel, locale, status, ex
     const root = workspace.newBlock('tt_problem', rootId); root.initSvg(); root.render(); root.moveBy(80, 80);
     ensurePresetProblem(workspace, level, root);
     const entry = root.getInputTargetBlock('TERM');
-    const scope = (entry.getInputTargetBlock('CONTEXT')?.sequenceChildren() || [])
+    const scope = entry.contextChildren()
       .map(binding => ({ uid: 'b' + binding.id + ':decl', name: binding.getFieldValue('NAME') }));
     if (level.starterBlock) {
       for (const [input, term] of [['F', level.solution.f], ['A', level.solution.a]]) {

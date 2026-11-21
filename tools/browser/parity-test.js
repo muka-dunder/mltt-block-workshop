@@ -30,8 +30,8 @@ const { chromium } = require('playwright');
         const { createTerm } = await import('/src/ui/problems/preset-problems.js');
         const { toJson } = await import('/src/ui/workspace/workspace-tools.js');
         const w = __mltt.workspace, root = w.getBlocksByType('tt_problem')[0], level = __mltt.state.level;
-        const entry = root.getInputTargetBlock('TERM'), context = entry.getInputTargetBlock('CONTEXT');
-        const declarations = context?.sequenceChildren() || [];
+        const entry = root.getInputTargetBlock('TERM'), context = entry;
+        const declarations = context?.contextChildren() || [];
         const scope = declarations.map(binding => ({ uid: 'b' + binding.id + ':decl', name: binding.getFieldValue('NAME') }));
         const connect = (parent, input, block) => parent.getInput(input).connection.connect(block.outputConnection);
         if (level.starterBlock) {

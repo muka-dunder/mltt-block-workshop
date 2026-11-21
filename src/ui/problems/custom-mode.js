@@ -1,5 +1,4 @@
 import './custom-mode.css';
-import { migrateProblemContainers } from './preset-problems.js';
 
 const STORAGE = 'mltt.custom.workspace.v1';
 const MODE = 'mltt.workspace.mode.v1';
@@ -107,14 +106,15 @@ export function createCustomMode({ workspace, state, notes, levels, loadLevel, r
     try {
       Blockly.Events.disable();
       window.BlockFreeze.withChanges(workspace, () => workspace.clear());
-      Blockly.serialization.workspaces.load(migrateProblemContainers(payload.workspace), workspace);
+      Blockly.serialization.workspaces.load(payload.workspace, workspace);
       if (restoreNotes && Array.isArray(payload.notes)) notes().importState(payload.notes);
-      if (payload.view) {
-        workspace.setScale(payload.view.scale);
-        workspace.scroll(payload.view.x, payload.view.y);
-      }
     } finally { Blockly.Events.enable(); state.loading = false; }
-    refresh(); renderUI(); Blockly.svgResize(workspace); notes().refresh();
+    refresh(); renderUI(); Blockly.svgResize(workspace);
+    if (payload.view) {
+      workspace.setScale(payload.view.scale);
+      workspace.scroll(payload.view.x, payload.view.y);
+    }
+    notes().refresh();
   }
 
   function setMode(mode) {

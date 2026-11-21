@@ -93,12 +93,17 @@ const { chromium } = require('playwright');
         const { toJson } = await import('/src/ui/workspace/workspace-tools.js');
         const w = __mltt.workspace, root = w.getBlocksByType('tt_problem')[0];
         const entry = root.getInputTargetBlock('TERM');
+        const conditions = entry.ttContexts;
         Blockly.common.setSelected(entry); __mltt.refreshWorkshop();
         return { valid: MLTT.checkCustomProblem(toJson(root), []).ok, root: root.id, workspaceId: w.id,
+          explicitContext: !!conditions,
+          emptyContext: conditions?.count !== 0 ||
+            (entry.getField('EMPTY_CONTEXT').isVisible() && !entry.getInput('CONTEXT0')),
           workspaces: Blockly.common.getAllWorkspaces().length, feedback: document.querySelector('#selectionInfo').textContent,
           references: w.getBlocksByType('tt_var', false).map(block => block.getField('REF').getText()) };
       });
       assert(result.valid, JSON.stringify(result)); assert.equal(result.root, before.root);
+      assert(result.explicitContext && result.emptyContext, 'Reference answers must show explicit conditions, including ∅ without empty slots');
       assert.equal(result.workspaceId, before.workspaceId); assert.equal(result.workspaces, before.workspaces);
       assert(result.feedback && !/Select a block|E_SCOPE|E_EMPTY/.test(result.feedback), result.feedback);
       assert(result.references.every(text => !text.includes('⚠')), JSON.stringify(result));

@@ -30,8 +30,10 @@ export function createNotes({ workspace, host, locale, getLevel, getAnswer, onCh
       if (note.tutorial && note.placement === 'right') {
         const rect = block.getSvgRoot().getBoundingClientRect(), hostRect = host.getBoundingClientRect();
         const origin = workspace.getOriginOffsetInPixels();
-        note.dx = (rect.right - hostRect.left + 24 - origin.x) / workspace.scale - p.x;
-        note.dy = (rect.top - hostRect.top - origin.y) / workspace.scale - p.y;
+        const available = host.clientWidth - (workspace.getFlyout()?.getWidth() || 0) - 32;
+        const below = rect.width + 24 + note.width > available;
+        note.dx = ((below ? rect.left : rect.right + 24) - hostRect.left - origin.x) / workspace.scale - p.x;
+        note.dy = ((below ? rect.bottom + 24 : rect.top) - hostRect.top - origin.y) / workspace.scale - p.y;
       }
       return { x: p.x + note.dx, y: p.y + note.dy };
     }
@@ -65,11 +67,7 @@ export function createNotes({ workspace, host, locale, getLevel, getAnswer, onCh
   });
   const hostObserver = new ResizeObserver(layout);
   hostObserver.observe(host);
-  const answerObserver = new ResizeObserver(() => {
-    layout();
-    const note = items.find(n => n.tutorial && n.placement === 'right');
-    if (note && cards.get(note.id)?.getBoundingClientRect().right > host.getBoundingClientRect().right) focusTutorial();
-  });
+  const answerObserver = new ResizeObserver(layout);
 
   function button(label, content, action, actionName) {
     const b = document.createElement('button');
@@ -163,9 +161,9 @@ export function createNotes({ workspace, host, locale, getLevel, getAnswer, onCh
     note.anchor = 'answer'; note.blockId = getAnswer()?.id;
     note.dx = (getAnswer()?.getHeightWidth().width || 0) + 24 / workspace.scale; note.dy = 0;
     const available = host.clientWidth - (workspace.getFlyout()?.getWidth() || 0) - 32;
-    note.width = Math.min(360, Math.max(220, available * 0.48));
-    note.height = Math.min(520, Math.max(320, host.clientHeight - 100)); note.collapsed = false;
-    note.tutorialVersion = 5; note.placement = 'right';
+    note.width = Math.min(520, Math.max(220, available * 0.55));
+    note.height = Math.min(720, Math.max(320, host.clientHeight - 64)); note.collapsed = false;
+    note.tutorialVersion = 6; note.placement = 'right';
     Object.assign(note, worldPosition(note));
   }
   function focusTutorial() {
@@ -174,21 +172,18 @@ export function createNotes({ workspace, host, locale, getLevel, getAnswer, onCh
     let shelf = workspace.getFlyout()?.getWidth() || 0;
     let available = host.clientWidth - shelf - 32;
     if (note.placement === 'right') {
-      note.width = Math.min(note.width, Math.max(220, available * 0.48));
+      note.width = Math.min(note.width, Math.max(220, available * 0.55));
       updateCard(note);
-    }
-    const rect = answer.getSvgRoot().getBoundingClientRect();
-    const size = { width: rect.width / workspace.scale, height: rect.height / workspace.scale };
-    if (!note.collapsed && size.width * workspace.scale + 24 + note.width > available) {
-      workspace.setScale(Math.max(0.35, Math.min(workspace.scale, (available - note.width - 24) / size.width)));
-      note.dx = size.width + 24 / workspace.scale;
     }
     shelf = workspace.getFlyout()?.getWidth() || 0;
     available = host.clientWidth - shelf - 32;
     const actual = answer.getSvgRoot().getBoundingClientRect(), hostRect = host.getBoundingClientRect();
-    const totalWidth = actual.width + 24 + note.width;
+    const below = actual.width + 24 + note.width > available;
+    const totalWidth = below ? Math.max(actual.width, note.width) : actual.width + 24 + note.width;
+    const totalHeight = below ? actual.height + 24 + (note.collapsed ? 38 : note.height)
+      : Math.max(actual.height, note.collapsed ? 38 : note.height);
     const targetX = shelf + 16 + Math.max(0, (available - totalWidth) / 2);
-    const targetY = Math.max(24, (host.clientHeight - Math.max(actual.height, note.collapsed ? 38 : note.height)) / 2);
+    const targetY = Math.max(24, (host.clientHeight - totalHeight) / 2);
     workspace.scroll(workspace.scrollX + targetX - (actual.left - hostRect.left),
       workspace.scrollY + targetY - (actual.top - hostRect.top));
     layout(); save();
@@ -232,7 +227,7 @@ export function createNotes({ workspace, host, locale, getLevel, getAnswer, onCh
       if (Array.isArray(stored)) items = stored.filter(n => n && typeof n.id === 'string' && Number.isFinite(n.x) && Number.isFinite(n.y)).map(n => ({ ...n, content: typeof n.content === 'string' ? n.content : '', width: Math.max(180, Math.min(800, Number(n.width) || 220)), height: Math.max(100, Math.min(800, Number(n.height) || 150)) }));
     } catch (_) { /* A damaged stored note must not prevent the game from loading. */ }
     for (const note of items) {
-      if (note.tutorial && note.tutorialVersion !== 5) resetTutorial(note);
+      if (note.tutorial && note.tutorialVersion !== 6) resetTutorial(note);
       if ((note.blockId || note.anchor) && !blockFor(note)) { delete note.blockId; delete note.anchor; }
       mount(note);
     }

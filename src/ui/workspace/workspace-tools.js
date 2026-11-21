@@ -26,7 +26,7 @@ export function toJson(b) {
   const j = { type: b.type, id: b.id, fields: {}, inputs: {} };
   if (b.ttEntryVersion === 2) j.entryVersion = 2;
   if (['tt_rule_app', 'tt_rule_judgments'].includes(b.type)) j.premiseCount = b.ttPremiseCount ?? b.ttItemCount ?? 2;
-  if (b.type === 'tt_context') j.contextCount = b.ttItemCount ?? 0;
+  if (b.ttContexts) j.contextCount = b.ttContexts.count;
   if (b.ttBinds) { j.binds = b.ttBinds; j.names = {}; }
   for (const inp of b.inputList) {
     for (const f of inp.fieldRow) if (f.name) j.fields[f.name] = f.getValue();

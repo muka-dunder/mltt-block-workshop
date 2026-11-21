@@ -21,9 +21,9 @@ const path = require('node:path');
     assert.match(await page.textContent('#levelStory'), /柯里化/);
     const refs = await page.evaluate(() => __mltt.workspace.getFlyout().getWorkspace().getBlocksByType('tt_var').map(b => LBM.decodeRef(b.getFieldValue('REF')).name));
     assert(refs.includes('f') && refs.includes('x'), 'Both f and x must be directly available');
-    await page.click('#libraryToggle');
+    await page.selectOption('#librarySelect', 'all');
     assert(await page.evaluate(() => __mltt.workspace.getFlyout().getWorkspace().getBlocksByType('tt_J').length > 0));
-    await page.click('#libraryToggle');
+    await page.selectOption('#librarySelect', 'common');
     await page.selectOption('#levelSelect', '1');
     const lambdaId = await page.evaluate(() => {
       const w = __mltt.workspace;

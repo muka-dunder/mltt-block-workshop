@@ -67,8 +67,8 @@ const { chromium } = require('playwright');
     const ids = await page.evaluate(() => {
       const w = __mltt.workspace, root = w.getBlocksByType('tt_problem')[0];
       const reference = w.newBlock('tt_var'); reference.initSvg(); reference.render();
-      const entry = root.getInputTargetBlock('TERM'), conditions = entry.getInputTargetBlock('CONTEXT');
-      const local = conditions.sequenceChildren().find(binding => binding.getFieldValue('NAME') === 'x');
+      const entry = root.getInputTargetBlock('TERM'), conditions = entry;
+      const local = conditions.contextChildren().find(binding => binding.getFieldValue('NAME') === 'x');
       reference.setFieldValue(LBM.encodeRef(local.ttBindingUid, 'x'), 'REF');
       root.getInputTargetBlock('TERM').getInput('TERM').connection.connect(reference.outputConnection);
       const scratch = w.newBlock('tt_zero'); scratch.initSvg(); scratch.render(); scratch.moveBy(90, 450);

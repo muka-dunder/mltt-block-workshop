@@ -18,12 +18,21 @@ const { chromium } = require('playwright');
     const result = await page.evaluate(async () => {
       const { toJson } = await import('/src/ui/workspace/workspace-tools.js');
       const w = __mltt.workspace;
+      const toolboxContexts = !w.getFlyout().getWorkspace().getBlocksByType('tt_context').length && !Blockly.Blocks.tt_context;
       const make = type => { const block = w.newBlock(type); block.initSvg(); block.render(); return block; };
       const connect = (parent, name, child) => parent.getInput(name).connection.connect(child.outputConnection);
-      const root = make('tt_problem'), judgment = make('tt_judgment'), context = make('tt_context');
-      connect(root, 'TERM', judgment); connect(judgment, 'CONTEXT', context); context.setItemCount(3);
+      const root = make('tt_problem'), judgment = make('tt_judgment'), context = judgment.ttContexts;
+      const emptyState = Blockly.serialization.blocks.save(judgment);
+      const emptyCopy = Blockly.serialization.blocks.append(emptyState, w);
+      const emptyRoundTrip = emptyCopy.ttContexts.count === 0 && emptyCopy.getField('EMPTY_CONTEXT').isVisible() && !emptyCopy.getInput('CONTEXT0');
+      emptyCopy.ttContexts.add();
+      const emptyEditable = !emptyCopy.getField('EMPTY_CONTEXT').isVisible() && !!emptyCopy.getInput('CONTEXT0');
+      emptyCopy.ttContexts.remove();
+      const emptyAgain = emptyCopy.getField('EMPTY_CONTEXT').isVisible();
+      emptyCopy.dispose(false);
+      connect(root, 'TERM', judgment); context.setCount(3);
       const bindings = ['A', 'x', 'y'].map((name, i) => {
-        const binding = make('tt_binding'); binding.setFieldValue(name, 'NAME'); connect(context, 'ITEM' + i, binding); return binding;
+        const binding = make('tt_binding'); binding.setFieldValue(name, 'NAME'); connect(judgment, 'CONTEXT' + i, binding); return binding;
       });
       const ref = binding => {
         const block = make('tt_var'); block.setFieldValue(LBM.encodeRef(binding.ttBindingUid, binding.getFieldValue('NAME')), 'REF'); return block;
@@ -33,21 +42,21 @@ const { chromium } = require('playwright');
       connect(judgment, 'TERM', ref(bindings[1])); connect(judgment, 'TYPE', ref(bindings[0]));
       const check = () => MLTT.checkCustomProblem(toJson(root), []);
       const valid = check().ok;
-      context.removeItem(2);
+      context.remove(2);
       const keptDraft = !!w.getBlockById(bindings[2].id) && !bindings[2].getParent();
       const removedValid = check().ok;
-      context.moveItem(0, 1); const badOrder = !check().ok; context.moveItem(1, -1);
+      context.move(0, 1); const badOrder = !check().ok; context.move(1, -1);
       BlockFreeze.setFrozen(bindings[1], true);
-      const deleteBlocked = !context.removeItem(1) && !context.isDeletable() && !root.isDeletable();
+      const deleteBlocked = !context.remove(1) && !judgment.isDeletable() && !root.isDeletable();
       let detachBlocked = false;
       try { bindings[1].unplug(); } catch (_) { detachBlocked = true; }
       const replacement = make('tt_binding');
-      try { connect(context, 'ITEM1', replacement); } catch (_) { /* Rejected connection is expected. */ }
-      const replacementBlocked = context.getInputTargetBlock('ITEM1') === bindings[1];
-      BlockFreeze.setFrozen(context, true);
-      const frozenSequence = !context.addItem();
-      BlockFreeze.setFrozen(context, false); BlockFreeze.setFrozen(bindings[1], false);
-      const thawed = context.addItem(); context.removeItem(2);
+      try { connect(judgment, 'CONTEXT1', replacement); } catch (_) { /* Rejected connection is expected. */ }
+      const replacementBlocked = judgment.getInputTargetBlock('CONTEXT1') === bindings[1];
+      BlockFreeze.setFrozen(judgment, true);
+      const frozenSequence = !context.add();
+      BlockFreeze.setFrozen(judgment, false); BlockFreeze.setFrozen(bindings[1], false);
+      const thawed = context.add(); context.remove(2);
       const rule = make('tt_rule_app'); rule.setPremiseCount(0);
       const ruleState = Blockly.serialization.blocks.save(rule);
       rule.dispose(false);
@@ -60,7 +69,7 @@ const { chromium } = require('playwright');
       const payload = __mltt.exportSession(); __mltt.importSession(payload);
       const frozenRestored = BlockFreeze.isFrozen(w.getBlockById(bindings[1].id));
       const stillValid = MLTT.checkCustomProblem(toJson(w.getBlockById(root.id)), []).ok;
-      return { valid, keptDraft, removedValid, badOrder, deleteBlocked, detachBlocked, replacementBlocked,
+      return { toolboxContexts, emptyRoundTrip, emptyEditable, emptyAgain, valid, keptDraft, removedValid, badOrder, deleteBlocked, detachBlocked, replacementBlocked,
         frozenSequence, thawed, zeroPremises, threePremises, noLabels, frozenRestored, stillValid };
     });
     for (const [name, passed] of Object.entries(result)) assert.equal(passed, true, name + ': ' + JSON.stringify(result));

@@ -31,6 +31,7 @@ async function start() {
   await import('./blockly/sequences.js');
   await import('./blockly/rules.js');
   await import('./blockly/judgments.js');
+  await import('./blockly/sequence-menus.js');
   await import('./blockly/problems.js');
   await import('./blockly/locking.js');
   await import('./ui/app.js');

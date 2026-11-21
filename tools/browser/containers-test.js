@@ -25,14 +25,14 @@ const path = require('node:path');
           known: root.inputList.some(i => i.name === 'KNOWN_TITLE'), entry: entry.type,
           nameLocked: !root.isEditable(), rootLocked: !root.isDeletable(),
           hiddenBindings: !!root.ttBinds || !!root.getField('BNAME0'),
-          conditions: entry.getInputTargetBlock('CONTEXT')?.type || null,
-          contextCount: entry.getInputTargetBlock('CONTEXT')?.ttItemCount || 0,
+          conditions: !!entry.ttContexts,
+          contextCount: entry.ttContexts.count,
           expectedContextCount: __mltt.state.level.givens.length + (__mltt.state.level.answerBinders || []).length,
           fixedLocked: fixed.getDescendants(false).every(b => !b.isEditable() && !b.isMovable() && !b.isDeletable()),
           ruleEmpty: entry.type !== 'tt_rule_app' || !entry.getInputTargetBlock('RULE') };
       });
       assert.equal(structure.count, 1); assert.equal(structure.legacy, 0); assert.deepEqual(structure.inputs, ['TERM']);
-      assert(!structure.known && !structure.hiddenBindings && (!structure.expectedContextCount || structure.conditions === 'tt_context') && structure.nameLocked && structure.rootLocked && structure.fixedLocked && structure.ruleEmpty, JSON.stringify(structure));
+      assert(!structure.known && !structure.hiddenBindings && (!structure.expectedContextCount || structure.conditions) && structure.nameLocked && structure.rootLocked && structure.fixedLocked && structure.ruleEmpty, JSON.stringify(structure));
       assert.equal(structure.entry, structure.id.startsWith('R') ? 'tt_rule_app' : 'tt_judgment');
       assert.equal(structure.contextCount, structure.expectedContextCount, JSON.stringify(structure));
     }

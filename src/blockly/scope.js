@@ -39,10 +39,10 @@
   }
 
   function contextDeclarations(context, before = Infinity) {
-    if (!context || context.type !== 'tt_context') return [];
+    if (!context?.ttContexts) return [];
     const out = [];
-    for (let i = 0; i < Math.min(context.ttItemCount || 0, before); i++) {
-      const block = context.getInputTargetBlock('ITEM' + i);
+    for (let i = 0; i < Math.min(context.ttContexts.count, before); i++) {
+      const block = context.getInputTargetBlock('CONTEXT' + i);
       if (block?.type !== 'tt_binding') continue;
       const uid = block.ttBindingUid || 'b' + block.id + ':decl';
       out.push({ uid, name: block.getFieldValue('NAME') || 'x', block, colour: binderColour(uid) });
@@ -58,11 +58,9 @@
       const inputName = inputContaining(p, child);
       if (!inputName) continue;
       let context = [];
-      if (p.type === 'tt_context') {
-        const match = /^ITEM(\d+)$/.exec(inputName);
-        if (match) context = contextDeclarations(p, Number(match[1]));
-      } else if (['tt_judgment', 'tt_rule_app', 'tt_rule_judgments'].includes(p.type) && inputName !== 'CONTEXT') {
-        context = contextDeclarations(p.getInputTargetBlock('CONTEXT'));
+      if (p.ttContexts) {
+        const match = /^CONTEXT(\d+)$/.exec(inputName);
+        context = contextDeclarations(p, match ? Number(match[1]) : Infinity);
       }
       for (const binding of context.reverse()) if (!out.some(existing => existing.uid === binding.uid)) out.push(binding);
       if (!p.ttBinds) continue;

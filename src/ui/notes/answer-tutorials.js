@@ -162,24 +162,40 @@ Let's connect the roles on both sides of the colon:
 Watch out for a common mix-up: the toolbox contains both 1 and ★. The block 1 is the type itself (which has type Type 0), whereas ★ is the element inside it (which has type 1). Remember this pair—the next two levels will show how to consume and compute with it!`
   },
   L9: {
-    'zh-CN': `答案是 ind_unit u C c，由三次普通函数应用组成。
+    'zh-CN': `画布上的答案是 ind_unit u C c，由三层普通的函数应用积木嵌套而成。它就像把一个未知的单元值 u，安全地翻译成我们在 ★ 处早就准备好的答案 c。让我们从最内层开始，一步步向外读懂类型是如何变化的：
 
-从最内层读起：ind_unit 接收 u : 1，得到等待类型族和基本情况的函数；再传入 C : 1 → Type，剩余参数的类型成为 C ★；最后传入 c : C ★，得到 C u。
+1. 第 1 层应用（ind_unit u）：把未知的单元值 u : 1 喂给函数 ind_unit。此时它变成了一台还在等待“类型族”和“基本情况”的半成品函数。
+2. 第 2 层应用（(ind_unit u) C）：接着传入目标类型族 C : 1 → Type。它告诉 ind_unit：“对于任意单元值 x，我想要的最终类型是 C x”，于是剩下最后一个参数的类型就确定成了基本情况 C ★！
+3. 第 3 层应用（((ind_unit u) C) c）：最后传入基本情况 c : C ★，所有参数齐全，整个表达式的结果类型就恰好变成了我们想要的 C u！
 
-这说明归纳子可以像其他函数一样部分应用。每一步都可以选择整块应用查看类型，观察还缺哪些参数。因为 u 是变量，表达式不会直接化简成 c；只有输入计算为 ★ 时，才会触发基本情况的计算规则。`,
-    en: `The answer is ind_unit u C c, built from three ordinary applications. Read from the innermost application outward: ind_unit receives u : 1, then the family C : 1 → Type, then c : C ★. The completed result has type C u.
+你也可以试着分别点选只套了一层或两层应用的内层积木，观察类型面板的变化——这就是为什么我们把消去子做成“柯里化函数”：它能像普通函数一样部分应用！还要记得：因为 u 还是一个未知变量，所以表达式不会直接化简成 c；只有当输入真正算成 ★ 时，才会触发下一步的计算规则。`,
+    en: `The completed answer is ind_unit u C c, built by nesting three ordinary application blocks. It safely extends the base case c (which works at ★) to any arbitrary unit value u. Let's trace the types from the innermost application outward:
 
-Each prefix is also a valid partial application. Selecting it shows which arguments remain. Since u is a variable, this term does not simply compute to c; that computation occurs when the input is the canonical element ★.`
+1. First application (ind_unit u): feeds the unknown variable u : 1 into ind_unit, leaving a function waiting for a type family and a base case.
+2. Second application ((ind_unit u) C): feeds the motive family C : 1 → Type, telling ind_unit that for each unit value x we want a result of type C x—so the remaining input type specializes to C ★.
+3. Third application (((ind_unit u) C) c): supplies the base case c : C ★, completing all three arguments and producing a term of type C u!
+
+Try selecting the inner partial applications on the canvas to watch how the remaining function type updates at each step. Because u is still an abstract variable, the expression does not automatically simplify to c—that computation happens only when the first argument is the canonical element ★.`
   },
   L10: {
-    'zh-CN': `答案是 ind_unit ★ C c。冻结的结构只包含函数符号 ind_unit 和普通应用积木，三个参数分别是 ★、C、c。
+    'zh-CN': `画布上冻结好的应用骨架已经把最里层的 ind_unit 接好，三个空槽分别填入了 ★、C 和 c，组成 ind_unit ★ C c。
 
-先传入 ★，再传入类型族 C，最后传入基本情况 c。单元类型的计算规则给出：ind_unit ★ C c ≡ c。因此整个应用和 c 都具有类型 C ★，计算结果也相同。
+也许你会好奇：“条件区里明明已经现成放着 c : C ★ 了，目标也是 C ★，为什么这关要锁住一层应用骨架、偏偏让我们写成 ind_unit ★ C c 呢？”
+原因就在“计算规则（Computation Rule）”！
+当消去函数 ind_unit 的第一个参数不再是抽象变量 u，而是货真价实的规范元素 ★ 时，它就会触发计算并归约回基本情况：
+ind_unit ★ C c ≡ c
+也就是说，ind_unit ★ C c 和 c 不仅类型都是 C ★，而且它们在计算意义上是“定义相等（≡）”的！
 
-这一关要求保留 ind_unit 的实际使用，是为了观察引入与消去如何配合。原先需要专用卡片表达的步骤，现在完全由普通函数应用完成。`,
-    en: `The answer is ind_unit ★ C c. The frozen structure contains the ind_unit function symbol and ordinary application blocks; its arguments are ★, C, and c.
+留意一下这关的设计：不需要任何特殊的“消去子专用大卡片”，仅靠普通的 ind_unit 函数符号和三块函数应用积木，就能把“引入（★）遇到消去（ind_unit）”的计算规则清清楚楚地拼出来。`,
+    en: `With the frozen application skeleton filled in, the canvas shows ind_unit ★ C c—built purely from the function symbol ind_unit and three ordinary application blocks with arguments ★, C, and c.
 
-After those three applications, the unit computation rule gives ind_unit ★ C c ≡ c. Both expressions have type C ★ and compute to the same result. This level retains the actual use of ind_unit so you can observe how introduction and elimination work together, entirely through ordinary function application.`
+You might wonder: “Since c already has type C ★ and the goal is C ★, why did this level lock an ind_unit application skeleton here instead of letting me submit c directly?”
+To demonstrate the unit type's “computation rule”!
+Whenever the first argument to ind_unit is the canonical element ★ itself, the eliminator immediately reduces back to the base case:
+ind_unit ★ C c ≡ c
+That means ind_unit ★ C c and c both have type C ★ and are definitionally equal (≡) by computation.
+
+Notice how clean the machinery is: instead of needing a dedicated multi-slot eliminator card, ordinary function application around ind_unit captures the entire interaction between introduction (★) and elimination.`
   },
   L11: {
     'zh-CN': `这关的答案非常干脆：一块 absurd 积木，里面接上条件区的假设 e，组成 absurd e。
@@ -216,32 +232,42 @@ Let's check why both the choice of block and the order of its slots matter:
 Just like logical conjunction (“A and B”), proving A × B means bundling together a proof of A and a proof of B. In the next level, we'll learn how to unpack a pair back into its pieces!`
   },
   L13: {
-    'zh-CN': `答案是 λp. ind_sigma A B p (λ_. A) (λa. λb. a)。函数符号后面的五个参数都通过普通应用积木传入。
+    'zh-CN': `这关的答案写成：λp. ind_sigma A B p (λ_. A) (λa. λb. a)。别看一长串应用套在一起，我们从外到内按 5 步拆开，每一块积木的用意都非常清楚：
 
-外层 λ 引入依赖对 p。A 与类型族 B 先告诉 ind_sigma 这个依赖对的组成类型，随后传入 p。
+1. 外层 λ 引入参数 p：目标是函数类型 (Σ x : A. B x) → A，所以先用 λ 接收传入的依赖对，命名为 p : Σ x : A. B x。
+2. 传入包裹的规格（第 1、2 个实参 A 和 B）：把 ind_sigma 作为函数头，先用两层应用依次传入第一项类型 A 和第二项类型族 B，这样 ind_sigma 就知道待会儿要拆的包裹长什么样了（积木上的层级数字都保持默认的 0）。
+3. 传入要拆的包裹（第 3 个实参 p）：把最外层 λ 收到的 p 传进去。
+4. 传入目标族（第 4 个实参 λ_. A）：它是一个接收任意包裹、说明最终结果类型的函数。无论拆哪个包裹，本关都要返回类型 A，所以用一块普通的 λ 忽略参数、直接返回 A 即可。
+5. 传入分支函数（第 5 个实参 λa. λb. a）：用两层普通、可编辑的 λ 积木依次接收拆包出来的第一项 a : A 和第二项 b : B a，然后把第一项 a 返回出去！
 
-第四个参数 λ_. A 是目标族：无论收到哪个包裹，都希望结果属于 A。第五个参数 λa. λb. a 是分支函数：它依次收到第一项 a : A 和第二项 b : B a，返回 a。
+整段程序合起来，就用纯正的 λ 和函数应用实现了“第一投影函数 fst”，把任意依赖对的第一部分安全地取出来。你还可以试着点选前面只传了 1～4 个参数的应用前缀，看看部分应用是如何一步步收窄到目标类型 A 的！`,
+    en: `The completed answer is λp. ind_sigma A B p (λ_. A) (λa. λb. a). Even though five applications are nested inside, each piece has a simple, clear role when we read from outside in:
 
-因此整个函数把 Σ (x : A) × B x 映射到 A，实现第一投影 fst。a、b 都由可编辑的普通 λ 绑定，没有专用卡片中的隐藏变量。只传入前几个参数时，剩余部分仍是一个等待参数的函数。`,
-    en: `The answer is λp. ind_sigma A B p (λ_. A) (λa. λb. a). All five arguments after the function symbol use ordinary application blocks.
+1. Outer λ binds p: because the goal is the function type (Σ x : A. B x) → A, we start with λ to accept the incoming dependent pair as p : Σ x : A. B x.
+2. Supply the pair's types (arguments 1 & 2: A and B): keeping the universe fields on ind_sigma at 0, we pass A and the family B first so ind_sigma knows the shape of the pair it is about to unpack.
+3. Supply the pair itself (argument 3: p): pass in the p received by the outer λ.
+4. Supply the motive (argument 4: λ_. A): a function stating what result type each unpacked pair should yield. Since we always want an A, an ordinary λ ignoring its input and returning A does the job.
+5. Supply the branch (argument 5: λa. λb. a): built with two ordinary, editable λ blocks that receive the unpacked components a : A and b : B a in turn, and return the first component a!
 
-The outer lambda introduces p. The first two arguments, A and B, specify the dependent pair's component types; the third supplies p. The fourth argument λ_. A is the motive: every pair should yield an A. The fifth, λa. λb. a, receives a : A and b : B a and returns a.
-
-The result maps Σ (x : A) × B x to A, implementing fst. Both branch variables are introduced by ordinary editable lambdas. Any application prefix remains a function waiting for its remaining arguments.`
+Altogether, this defines the first projection fst using nothing beyond ordinary lambdas and applications. Try clicking shorter application prefixes on the canvas to inspect how partial application narrows the type step by step!`
   },
   L14: {
-    'zh-CN': `答案是 λp. ind_sigma A (λ_. B) p (λ_. B) (λa. λb. b)。
+    'zh-CN': `对比一下上一关，本关的答案是 λp. ind_sigma A (λ_. B) p (λ_. B) (λa. λb. b)。整体骨架还是那一套，只做了两处关键调整：
 
-第一个参数 A 指定第一项的类型。第二个参数 λ_. B 指定第二项的类型族：这里 B 不依赖第一项，所以是常量族。第三个参数 p 是要拆开的序对。
+1. 用常量族包装第 2 个实参（λ_. B）：和上一关不同，条件区里的 B 只是一个固定类型，不是 A → Type 的类型族。但 ind_sigma 的第 2 个参数仍然需要一个“给定第一项、返回第二项类型”的函数，所以我们用一块普通的 λ 构造出常量族 λ_. B（“不管第一项是谁，第二项的类型永远是 B”）。
+2. 第 3 个实参传入外层 λ 收到的序对 p。
+3. 修改第 4 个实参（目标族 λ_. B）：本关目标是 (A × B) → B，因此声明整个消去过程的结果类型也是 B。
+4. 修改第 5 个实参（分支函数 λa. λb. b）：两层 λ 依次接收拆出来的 a : A 和 b : B 后，这次返回第二项 b！
 
-第四个参数 λ_. B 是目标族，说明整个消去过程的结果类型也固定为 B。第五个参数 λa. λb. b 接收拆出的两项，返回第二项 b。
+仔细欣赏一下那两个长得一模一样的 λ_. B：第 2 个实参描述的是“序对包裹内部的第二格结构”，而第 4 个实参描述的是“整个消去函数最终想输出的目标类型”——一个管内部结构，一个管外部目标！通过普通 λ 和应用积木的组合，我们顺利定义出了“第二投影函数 snd”。`,
+    en: `Compare this answer with the previous level: λp. ind_sigma A (λ_. B) p (λ_. B) (λa. λb. b) follows the exact same pattern, with two key updates:
 
-两个 λ_. B 的外观相同，但第二个实参描述包裹的内部结构，第四个实参描述消去后的目标。所有 λ 和应用都是通用积木；这个函数因此实现了 A × B 到 B 的第二投影 snd。`,
-    en: `The answer is λp. ind_sigma A (λ_. B) p (λ_. B) (λa. λb. b).
+1. Wrap B as a constant family for argument 2 (λ_. B): unlike the last level, B in the context is a plain type rather than a family A → Type. Because ind_sigma's second argument still expects a family taking the first component, we build the constant family λ_. B with an ordinary λ (“no matter what the first component is, the second component has type B”).
+2. Argument 3 passes the pair p received by the outer λ.
+3. Argument 4 (the motive λ_. B) states that the entire elimination returns a result of type B, matching our goal (A × B) → B.
+4. Argument 5 (the branch λa. λb. b) uses two ordinary λs to receive a : A and b : B, and returns the second component b!
 
-A specifies the first component's type. The second argument λ_. B is the constant family specifying the second component's type, and p supplies the pair. The fourth argument λ_. B is the motive, fixing the entire elimination result to B. The last argument λa. λb. b receives the components and returns the second one.
-
-Although the two constant families look alike, the second argument describes the pair's structure while the fourth describes the elimination's goal. Ordinary lambdas and applications implement the second projection snd from A × B to B.`
+Even though the two λ_. B blocks look identical, they play distinct roles: argument 2 describes the pair's internal second-component type, while argument 4 describes the elimination's final output type. Together, ordinary lambdas and applications implement the second projection snd.`
   },
   L15: {
     'zh-CN': `画布上的答案只有一个干脆的积木：refl。它代表“自反性（Reflexivity）”，意思是“任何东西都天然等于它自己”。

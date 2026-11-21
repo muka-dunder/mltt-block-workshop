@@ -1,16 +1,30 @@
 'use strict';
 const assert = require('node:assert/strict');
 const M = require('../src/core/mltt.js');
-const { levels, nat, close } = require('../src/levels/index.js');
+const { levels, cards, nat, close } = require('../src/levels/index.js');
 const get = id => {
   const level = levels.find(item => item.id === id);
   assert(level, 'Missing level: ' + id);
   return level;
 };
-const addBlock = { type: 'tt_lemma_add', fields: { NAME: 'another_name' }, inputs: {} };
-assert.equal(M.elabBlock(addBlock).name, 'add', 'Each lemma block has a fixed identity');
-assert(M.conv(M.infer([], M.elabBlock(addBlock)), M.infer([], M.Ref('add'))));
-assert(M.conv(M.evalTm([], M.App(M.App(M.elabBlock(addBlock), close(nat(2))), close(nat(3)))), M.evalTm([], close(nat(5)))));
+const addBlock = { type: 'tt_symbol', fields: { REF: 'preset_add_v1', NAME: 'another_name' }, inputs: {} };
+const checkedAdd = M.checkWorkshop({ givens: [], entry: true }, { type: 'tt_answer', inputs: { TERM: addBlock } }, cards.map(card => card.declaration));
+assert(checkedAdd.ok, checkedAdd.error?.message);
+assert.equal(checkedAdd.term.name, 'add', 'Preset cards use the same stable declaration identity as player cards');
+assert(M.conv(M.infer([], checkedAdd.term), M.infer([], M.Ref('add'))));
+assert(M.conv(M.evalTm([], M.App(M.App(checkedAdd.term, close(nat(2))), close(nat(3)))), M.evalTm([], close(nat(5)))));
+assert.equal(cards[0].declaration.type, 'tt_declare');
+assert.equal(cards[0].declaration.fields.KIND, 'definition');
+assert(cards.every(card => card.kind === 'theorem'), 'Preset constructions belong to the theorem category');
+const inductionCard = { type: 'tt_symbol', fields: { REF: 'preset_add_zero_v1' } };
+const checkedInduction = M.checkWorkshop({ givens: [], entry: true }, { type: 'tt_answer', inputs: { TERM: inductionCard } }, cards.map(card => card.declaration));
+assert(checkedInduction.ok, checkedInduction.error?.message);
+assert.deepEqual(checkedInduction.assumptions, [], 'The complete induction theorem introduces no axioms');
+const brokenCard = structuredClone(cards[0].declaration);
+brokenCard.inputs.VALUE = { type: 'tt_true' };
+assert(!M.checkWorkshop({ givens: [], entry: true }, { type: 'tt_answer', inputs: { TERM: addBlock } }, [brokenCard]).ok, 'Preset definitions receive ordinary type checks');
+const shadow = structuredClone(cards[0].declaration); shadow.id = 'different_add';
+assert.equal(M.checkWorkshop({ givens: [], entry: true }, { type: 'tt_answer', inputs: { TERM: addBlock } }, [shadow]).error.code, 'E_DECLARATION');
 const series = name => levels.filter(level => level.series === name).sort((a, b) => a.seriesOrder - b.seriesOrder);
 assert.deepEqual(series('journey').map(level => level.id), [
   'L0', 'L1', 'L3', 'L7', 'L8', 'journey_pair', 'L13', 'journey_nat', 'journey_double', 'L15', 'L19', 'journey_induction',
@@ -49,7 +63,7 @@ for (const level of levels.filter(item => item.scaffoldPaths)) {
 
 const double = get('journey_double').solution;
 for (let n = 0; n < 4; n++) {
-  assert(M.conv(M.evalTm([], M.App(double, close(nat(n)))), M.evalTm([], close(nat(2 * n)))), 'Doubling reference at ' + n);
+  assert(M.conv(M.evalTm([M.evalTm([], close(nat(n)))], double), M.evalTm([], close(nat(2 * n)))), 'Doubling reference at ' + n);
 }
 assert(!M.checkLevel(get('journey_induction'), M.Lam('n', M.REFL)).ok, 'The induction theorem needs its step for an unknown n');
 assert(!M.checkLevel(get('dependent_constant'), M.Lam('x', M.Var(0))).ok, 'A family returns a type, not an input value');

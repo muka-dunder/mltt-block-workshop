@@ -4,7 +4,7 @@
   global.MLTTLevelJourney = factory;
 })(typeof globalThis !== 'undefined' ? globalThis : this, function (syntax, existing) {
   'use strict';
-  const { v, Uo, pi, sigma, lam, app, pair, id, natrec, ref, NATo, REFLo, ZEROo } = syntax;
+  const { v, Uo, pi, sigma, lam, app, pair, id, ref, NATo, ZEROo } = syntax;
   const suc = n => ({ nt: 'suc', n });
   const apply = (f, ...args) => args.reduce(app, f);
   const add = (a, b) => apply(ref('add'), a, b);
@@ -12,9 +12,6 @@
   const types = ['A', 'B', 'C'].map(type);
   const family = { name: 'B', ty: pi('_', v('A'), Uo(0)) };
   const naturalEquality = (a, b) => id(NATo, a, b);
-  const sucCongResult = naturalEquality(suc(v('a')), suc(v('b')));
-  const sucCongType = pi('a', NATo, pi('b', NATo,
-    pi('proof', naturalEquality(v('a'), v('b')), sucCongResult)));
   const base = { givensRaw: [], newBlocks: [], hints: [] };
   const added = [
     {
@@ -40,24 +37,23 @@
       tag: 'Recursion', tagZh: '递归',
       story: 'The recursive machine starts at zero. Each successor must add two to the previous result.',
       storyZh: '把数字翻倍：0 的两倍还是 0，输入每增加一步，结果就增加两步。补上递归步骤，让机器工作起来吧！',
-      goalRaw: pi('n', NATo, NATo),
-      solutionRaw: lam('n', natrec(v('n'), '_', NATo, ZEROo, 'k', 'ih', suc(suc(v('ih'))))),
-      solutionText: 'λn. ind_nat n (λ_. ℕ) 0 (λk. λih. suc (suc ih))',
-      palette: ['tt_suc', 'tt_var', 'tt_app', 'tt_lam', 'tt_eliminator_ind_nat'],
-      scaffoldPaths: [['BODY', 'A', 'BODY', 'BODY']],
+      answerBindersRaw: [{ name: 'n', ty: NATo }], goalRaw: NATo,
+      solutionRaw: apply(ref('repeat_nat'), v('n'), ZEROo, lam('k', lam('ih', suc(suc(v('ih')))))),
+      solutionText: 'repeat_nat n 0 (λk. λih. suc (suc ih))',
+      palette: ['tt_suc', 'tt_var', 'tt_app', 'tt_lam', 'tt_card'], cardNames: ['repeat_nat'],
+      scaffoldPaths: [['A', 'BODY', 'BODY']],
     },
     {
       ...base, id: 'journey_induction', title: 'A proof for every number', titleZh: '第一次归纳',
       tag: 'Induction', tagZh: '归纳证明',
       story: 'Zero is settled. Use the induction hypothesis and the supplied successor-congruence lemma for the next step.',
-      storyZh: '零的情况已经证明好了。接下来，借助归纳假设 ih 和现成的引理 suc_cong，把相等的两边一起往前推进一步。',
-      answerBindersRaw: [{ name: 'suc_cong', ty: sucCongType }],
-      goalRaw: pi('n', NATo, naturalEquality(add(v('n'), ZEROo), v('n'))),
-      solutionRaw: lam('n', natrec(v('n'), 'm', naturalEquality(add(v('m'), ZEROo), v('m')),
-        REFLo, 'k', 'ih', apply(v('suc_cong'), add(v('k'), ZEROo), v('k'), v('ih')))),
-      solutionText: 'λn. ind_nat n (λm. Id ℕ (add m 0) m) refl (λk. λih. suc_cong (add k 0) k ih)',
-      palette: ['tt_app', 'tt_var', 'tt_lemma_add', 'tt_zero', 'tt_suc', 'tt_refl', 'tt_eliminator_ind_nat'],
-      scaffoldPaths: [['BODY', 'A', 'BODY', 'BODY']],
+      storyZh: '起点已经站稳，这关专心练习归纳的接力一步：用 ih，把 k + 0 = k 推进到下一阶。完整归纳证明可以在 add_zero 定理的详情里查看。',
+      answerBindersRaw: [{ name: 'k', ty: NATo }, { name: 'ih', ty: naturalEquality(add(v('k'), ZEROo), v('k')) }],
+      goalRaw: naturalEquality(add(suc(v('k')), ZEROo), suc(v('k'))),
+      solutionRaw: apply(ref('suc_cong'), add(v('k'), ZEROo), v('k'), v('ih')),
+      solutionText: 'suc_cong (add k 0) k ih',
+      palette: ['tt_app', 'tt_var', 'tt_card', 'tt_zero', 'tt_suc', 'tt_refl'], cardNames: ['add', 'suc_cong', 'add_zero'],
+      scaffoldPaths: [['A']],
     },
     {
       ...base, id: 'function_compose', title: 'Connect two functions', titleZh: '函数复合',
@@ -122,7 +118,20 @@
   byId.get('L1').recommendedBranch = 'functions';
   byId.get('L3').recommendedBranch = 'functions';
   byId.get('L7').recommendedBranch = 'dependent';
-  byId.get('L13').scaffoldPaths = [['BODY', 'A', 'BODY', 'BODY']];
-  byId.get('L19').scaffoldPaths = [['F', 'F', 'A']];
+  Object.assign(byId.get('L13'), {
+    answerBindersRaw: [type('A'), family, { name: 'p', ty: sigma('x', v('A'), app(v('B'), v('x'))) }],
+    goalRaw: v('A'), goalText: 'A',
+    solutionRaw: apply(ref('with_pair'), v('A'), v('B'), v('p'), lam('a', lam('b', v('a')))),
+    solutionText: 'with_pair A B p (λa. λb. a)',
+    palette: ['tt_lam', 'tt_var', 'tt_app', 'tt_card'], cardNames: ['with_pair'], newBlocks: [],
+    scaffoldPaths: [['A', 'BODY', 'BODY']],
+    hints: ['The package p is already in the context.', 'with_pair opens p and gives the branch a : A and b : B a.', 'Return the item whose type is A.'],
+  });
+  Object.assign(byId.get('L19'), {
+    solutionRaw: apply(ref('transport'), v('A'), v('B'), v('x'), v('y'), v('p'), v('b')),
+    solutionText: 'transport A B x y p b',
+    palette: ['tt_app', 'tt_var', 'tt_card'], cardNames: ['transport'], newBlocks: [], scaffoldPaths: [['A']],
+    hints: ['transport already contains the equality-elimination machinery.', 'The missing input must have type B x.', 'The context provides exactly that starting material.'],
+  });
   return all;
 });

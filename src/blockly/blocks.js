@@ -7,15 +7,6 @@
   if (!global.BlockBinding) throw new Error('Load scope.js before blocks.js');
   const { declareBinder, nameField } = global.BlockBinding;
   const { FieldBinderRef, FieldLocalVar } = global;
-  for (const [type, name] of Object.entries(global.MLTT.lemmaBlockNames)) {
-    B.Blocks[type] = {
-      init() {
-        this.appendDummyInput().appendField(name);
-        this.setOutput(true, null); this.setColour('#d7ccc8');
-        this.setTooltip(() => name + ' : ' + global.MLTT.showVal([], global.MLTT.infer([], global.MLTT.Ref(name))));
-      },
-    };
-  }
   for (const [type, name] of Object.entries(global.MLTT.eliminatorBlockNames)) {
     B.Blocks[type] = {
       init() {
@@ -60,9 +51,8 @@
     init() {
       this.appendDummyInput()
         .appendField(new B.FieldDropdown([
-          [workshopText('定义', 'Definition'), 'definition'],
-          [workshopText('假设', 'Assumption'), 'assumption'],
           [workshopText('公理', 'Axiom'), 'axiom'],
+          [workshopText('定理', 'Theorem'), 'definition'],
         ], function(value) {
           const block = this.getSourceBlock();
           if (block) block.updateDeclarationShape(value);
@@ -72,7 +62,8 @@
       this.appendValueInput('TYPE').appendField(':');
       this.appendValueInput('VALUE').appendField(':=');
       this.setColour('#7b6aa8');
-      this.setTooltip(workshopText('先填写类型；定义还需要一个具有该类型的值。额外假设会显示在检查结果中。', 'Supply a type and, for a definition, a value of that type. Extra assumptions are tracked.'));
+      this.updateDeclarationShape('axiom');
+      this.setTooltip(workshopText('公理填写类型；定理还需要提供符合类型的构造。使用的公理会显示在检查结果中。', 'An axiom supplies a type; a theorem also supplies a checked construction. Axiom dependencies are tracked.'));
     },
     updateDeclarationShape(kind) {
       const input = this.getInput('VALUE');

@@ -31,7 +31,7 @@ const { chromium } = require('playwright');
         const initial = await page.evaluate(async () => {
           const { toJson } = await import('/src/ui/workspace/workspace-tools.js');
           const root = __mltt.workspace.getBlocksByType('tt_problem')[0];
-          return { id: __mltt.state.level.id, ok: MLTT.checkCustomProblem(toJson(root), []).ok,
+          return { id: __mltt.state.level.id, ok: MLTT.checkCustomProblem(toJson(root), __mltt.cards.declarations(toJson(root))).ok,
             ids: root.getDescendants(false).map(block => block.id).sort() };
         });
         assert.equal(initial.ok, false, 'Unfinished lesson must not pass: ' + initial.id);
@@ -45,7 +45,8 @@ const { chromium } = require('playwright');
         await page.click('#viewAnswerBtn');
         assert.equal(await page.evaluate(async () => {
           const { toJson } = await import('/src/ui/workspace/workspace-tools.js');
-          return MLTT.checkCustomProblem(toJson(__mltt.workspace.getBlocksByType('tt_problem')[0]), []).ok;
+          const root = toJson(__mltt.workspace.getBlocksByType('tt_problem')[0]);
+          return MLTT.checkCustomProblem(root, __mltt.cards.declarations(root)).ok;
         }), true, 'Reference checks: ' + initial.id);
         assert((await page.locator('.note-card[data-kind="tutorial"] textarea').inputValue()).length > 100, 'An answer explanation is present');
         const steps = await page.evaluate(() => (__mltt.state.level.scaffoldPaths || []).map(path => {
@@ -69,7 +70,8 @@ const { chromium } = require('playwright');
               if (binding) child.setFieldValue(LBM.encodeRef(binding.uid, binding.name), 'REF');
             }
           }
-          return MLTT.checkCustomProblem(toJson(__mltt.workspace.getBlocksByType('tt_problem')[0]), []).ok;
+          const root = toJson(__mltt.workspace.getBlocksByType('tt_problem')[0]);
+          return MLTT.checkCustomProblem(root, __mltt.cards.declarations(root)).ok;
         }, steps), 'The supplied scaffold can be completed through its regular slots: ' + initial.id);
       }
       assert(await page.locator('#nextBtn2').isDisabled(), 'End of series does not wrap');
@@ -96,10 +98,12 @@ const { chromium } = require('playwright');
     await page.selectOption('#seriesSelect', 'journey');
     await page.selectOption('#levelSelect', '0');
     assert(await page.evaluate(() => {
-      const block = __mltt.workspace.newBlock('tt_lemma_add'); block.initSvg(); block.render();
-      const fixed = !block.getField('NAME') && block.toString() === 'add' && !Blockly.Blocks.tt_lemma;
+      const block = __mltt.workspace.newBlock('tt_card'); block.setFieldValue('preset_add_v1', 'CARD'); block.initSvg(); block.render();
+      const fixed = !block.getField('NAME') && block.toString() === 'add' && !Blockly.Blocks.tt_lemma && !Blockly.Blocks.tt_lemma_add;
       block.dispose(false); return fixed;
-    }), 'The add lemma is its own fixed-name puzzle');
+    }), 'The add lemma uses the same named card as user definitions');
+    // Finish queued Blockly changes before starting the toast's expiry clock.
+    await page.clock.runFor(200);
     assert(await page.evaluate(() => {
       __mltt.check();
       const status = document.querySelector('#status'), note = document.querySelector('.note-card'), layer = note.parentElement;

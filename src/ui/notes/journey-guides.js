@@ -107,22 +107,24 @@ Check your context: you are given a : A and b : B a. Once you decide what goes i
 You don't need to invent any new data here—just grab the pair block ⟨ , ⟩ and pack the supplied items in the exact order the type describes.`
   },
   L13: {
-    'zh-CN': `上一关我们学会了把两件相关物品“打包”进依赖对；这一关反过来，我们来体验怎样把包裹“拆开”并取出里面的第一项！
+    'zh-CN': `上一关我们把两件相关物品“打包”进了依赖序对；这一关反过来，我们来体验怎样把包裹“拆开”，把里面的第一项取出来！
 
-先看目标：(Σ x : A. B x) → A——要求造一台函数，接收一个依赖对 p，然后交出类型为 A 的第一项。别被画布上预搭好的那长串 ind_sigma 框架吓到！那些外壳题目已经帮你冻结并填妥了，你这一关只需要把注意力放在最后一个空槽（拆包分支的出口）上：
-1. 最外层的 λ 引入了待拆的包裹 p : Σ (x : A) × B x；
-2. 中间的 ind_sigma 负责把包裹打开，并把里面的两件物品摆到最后一行“λa. λb. ?”的工作台上——也就是两个局部变量 a : A 和 b : B a；
-3. 唯一空着的，就是这个分支最后要交出去的结果。
+先看看条件区和目标：Γ 里已经备好了类型 A、类型族 B，以及现成的包裹 p : Σ (x : A) × B x，而你只需要直接交出一个 A（连外层的函数外壳都不用自己搭啦）。
 
-站在工作台前看看目标和手头的两个局部材料：整台机器想要返回 A，而桌上躺着类型为 A 的 a 和类型为 B a 的 b。该把谁递出去呢？（想亲手从头搭完整套 ind_sigma 参数和目标族的同学，以后还可以去序对专题里深入挑战哦。）`,
-    en: `In the last level you packed two items into a dependent pair. Now let's do the opposite: open a package and extract its first component!
+再看看画布上这块新朋友——橙色（或命名）的定理卡片“with_pair”：它就像一台现成的“拆包工具”，题目已经帮你接好了 A、B、p，把最繁琐的拆包接线全都收进了卡片内部。当它打开包裹 p 时，会把里面装的两件物品摆到最后一行“λa. λb. ?”的工作台上：
+• 第一格的局部变量 a : A；
+• 第二格的局部变量 b : B a。
 
-Look at the goal: (Σ x : A. B x) → A—a function that takes a dependent pair p and returns an A. Don't be intimidated by the pre-built ind_sigma frame already on the canvas! All of its outer wiring is already filled and frozen for you, leaving just one empty slot at the very end:
-1. The outer λ receives the incoming pair p : Σ (x : A) × B x;
-2. ind_sigma opens p and hands its two unpacked contents to the final branch “λa. λb. ?”, placing two local variables—a : A and b : B a—on your workbench;
-3. The only missing piece is the final result that the branch returns.
+现在唯一空着的，就是这个拆包分支最后要交出去的结果。对照目标 A，再看看工作台上的 a 和 b，谁的类型正好匹配呢？（好奇 with_pair 内部是怎么搭出来的？右键点击这张卡片选择“查看类型与构造…”，就能看到里面仍然是你熟悉的普通拼图 ind_sigma 哦！）`,
+    en: `In the last level you packed two items into a dependent pair. Now let's open one up and extract its first component!
 
-Look at what the machine needs (type A) and what lies on the workbench (a : A and b : B a). Which unpacked piece fits the goal?`
+Check the context and goal: Γ already gives you A, the type family B, and a ready-made package p : Σ (x : A) × B x, and your goal is simply A (no outer function wrapper needed here).
+
+Look at the new named theorem card on the canvas, “with_pair”: it acts like a ready-made box opener, with A, B, and p already wired up and the fixed unpacking machinery tucked neatly inside. When with_pair opens p, it places both contents onto the workbench of the final branch “λa. λb. ?”:
+• first item a : A;
+• second item b : B a.
+
+Only the final return slot of that branch is empty. Compare the goal A with the types of a and b on the workbench—which one should you hand back? (Curious how with_pair works inside? Right-click the card and choose “View type and construction…” to inspect the ordinary ind_sigma blocks behind it!)`
   },
   journey_nat: {
     'zh-CN': `自然数家族（写作 ℕ）正式登场啦！在类型论里，自然数不是一串现成的阿拉伯数字，而是像搭台阶一样一级一级“构造”出来的：
@@ -145,21 +147,26 @@ On your canvas, a suc block is already waiting for a natural-number input. Try p
 This “base + next step” pattern is the foundation for the next level, where we'll build a machine that repeats work automatically!`
   },
   journey_double: {
-    'zh-CN': `现在我们来打造一台“数字翻倍机”！它的目标类型是 ℕ → ℕ：输入一个自然数 n，输出 2 倍的 n。画布上已经用 ind_nat（自然数递归/归纳子）搭好了机器外壳，你只需要补全最后一行空着的“后继分支”。
+    'zh-CN': `现在我们来体验自然数递归，给条件区里的自然数 n 算出一个“两倍的结果”！因为 n : ℕ 已经放在 Γ 里，所以目标只要交出一个 ℕ 就行啦。
 
-怎么让一台机器处理任意大的自然数呢？ind_nat 的思路像接力赛，只问你两个问题：
-1. 起点（n = 0 时）返回什么？题目已经替你填好了 0，因为 0 的两倍还是 0。
-2. 接力（n 从 k 变成 suc k 时）怎么算？在最后面的分支“λk. λih. ?”里，你不仅拿到了前一个数 k，还直接拿到了机器已经替你算好的“k 的结果”——ih（归纳假设，也就是 2 × k）！
+画布上摆着一张新定理卡片 repeat_nat，题目已经替你接成了简洁的骨架：repeat_nat n 0 (λk. λih. ?)。怎么让一台机器处理任意大的自然数呢？它的思路就像跑接力赛，依次只需要三样东西：
+1. 要沿台阶走一遍的自然数：n；
+2. 起点（n = 0 时）的答案：已经填好了 0，因为 0 的两倍还是 0；
+3. 接力步骤（λk. λih. ?）：当机器已经对前一个数 k 算出了结果 ih（在翻倍的做法里，ih 就是 2 × k）时，下一步该怎么算？
 
-所以你完全不用从头算起！只要盯住那份现成的接力棒 ih：当输入从 k 变成 suc k（增加了 1）时，翻倍后的结果应该在 ih 的基础上再往前走几步呢？用左侧的 suc 积木加工 ih 吧！
-（小提示：这里的“检查”主要核对分支返回的类型是不是 ℕ；打开“查看答案”可以看到标准的翻倍做法哦。）`,
-    en: `Time to build a doubling machine! Its goal is ℕ → ℕ: given a natural number n, return twice n. The canvas already provides the ind_nat (natural-number recursion) frame, leaving only the final successor step for you to fill.
+你完全不用从头数起！只要盯住那份现成的接力棒 ih：当输入从 k 迈向 suc k（多走 1 步）时，翻倍的结果应该在 ih 的基础上再往前走几步呢？用左侧的 suc 积木加工 ih 吧！
 
-How does ind_nat handle arbitrarily large numbers without an infinite loop? Like a relay race, it asks just two questions:
-1. Base case (at 0): what should we return for 0? Already filled with 0, because twice zero is zero.
-2. Step case (from k to suc k): inside the branch “λk. λih. ?”, you receive the previous number k AND the result ih (the induction hypothesis) that the machine has already computed for k—namely, twice k!
+（小提示：右键点击 repeat_nat 选择“查看类型与构造…”，可以看到它内部其实是用 ind_nat 实现、并把输出固定为 ℕ 的普通拼图。本关“检查”先核对返回类型是否为 ℕ；参考答案展示的是准确的翻倍步骤。）`,
+    en: `Now let's try natural-number recursion to compute “twice n” for the number n : ℕ in Γ! Because n is already in your context, the goal is simply ℕ.
 
-You don't need to recompute from scratch. Focus on the baton ih: when the input grows from k to suc k (+1), how many steps forward should the doubled result advance from ih? Use suc blocks to build on ih! (Note: checking verifies that your step has type ℕ; the reference answer demonstrates the exact doubling step.)`
+The canvas uses a theorem card called “repeat_nat”, pre-wired as: repeat_nat n 0 (λk. λih. ?). Like a relay race, it handles any natural number using three inputs:
+1. The number n to walk down;
+2. The starting answer at 0: already set to 0, because twice zero is zero;
+3. The relay step (λk. λih. ?): given the previous number k and the machine's already-computed result ih for k (meaning twice k), how do we produce the next result for suc k?
+
+You don't need to start over from 0! Focus on the relay baton ih: when the input increases from k to suc k (+1), how many steps forward should the doubled output advance beyond ih? Build that step with suc!
+
+(Tip: right-click repeat_nat and choose “View type and construction…” to see the ind_nat blocks inside with a fixed ℕ output type. Checking verifies that your branch returns a ℕ; the reference answer demonstrates exact doubling.)`
   },
   L15: {
     'zh-CN': `在日常数学里，我们常写“a = a”或“2 + 2 = 4”。但在类型论里，马丁-洛夫做了一个极其精妙的设计：没有单独一套“等号逻辑”，而是把“两个东西相等”这件事本身，也变成一种类型！
@@ -178,36 +185,46 @@ Because an equality claim is a type, proving an equation means constructing a te
 Keep the three roles separate: a is the object being compared, Id writes the equality proposition, and refl is the proof term you submit!`
   },
   L19: {
-    'zh-CN': `上一关我们造出了相等证据，这一关来看看相等证据能帮我们干什么大事——答案是“搬运数据（Transport）”！
+    'zh-CN': `上一关我们造出了相等证据，这一关来看看相等证据能拿来干什么大事——答案是当作一座“跨类型搬运数据的桥梁（Transport）”！
 
-读读条件区的设定：A 里有两个元素 x 和 y，p : Id A x y 是它们相等的证据；同时还有一个类型族 B : A → Type 0，在 x 处生成类型 B x，在 y 处生成类型 B y。现在我们手里拿了一个属于 B x 的项 b，可目标却要我们交出一个属于 B y 的项！
+读读 Γ 里的设定：类型 A 里有两个点 x 和 y，p : Id A x y 是它们相等的证据；同时还有一个类型族 B : A → Type 0，在 x 处生成类型 B x，在 y 处生成类型 B y。现在你手里有一份属于 B x 的材料 b，可目标却要交出一个属于 B y 的项！
 
-站在类型检查器的角度，B x 和 B y 名字写得不一样，不能直接混用；但是有了相等证据 p : Id A x y 搭桥，消去函数 J 就可以把“起点房间 B x”里的材料，顺着桥搬运到“终点房间 B y”里！
+站在检查器的角度，B x 和 B y 写法不同，不能直接把 b 当作答案；但是有了相等桥梁 p，定理卡片“transport”就能把“起点房间 B x”里的货物，顺着桥梁 p 安全运到“终点房间 B y”！
 
-画布上已经把 J 的长长参数骨架（类型 A、起点 x、目标族 λw. λq. B w、终点 y 和桥梁 p）都铺好了，唯独空出了中间那个“起点处的材料”槽位：想一想，假如终点还没离开起点 x（就是 x 自己），这时候需要交出一份 B x 类型的材料——条件区里谁恰好就在 B x 里面呢？`,
-    en: `Now that you can construct equality evidence, let's put it to work—by “transporting” data across related types!
+画布上已经用 transport 接好了 A、B、x、y 和桥梁 p，只留下最后一个“要搬运的起点材料”空槽：既然要从 B x 出发去往 B y，看看 Γ 里哪件材料恰好住在 B x 房间里？
 
-Read the context: x and y are elements of A, and p : Id A x y is evidence that x equals y. Meanwhile, a type family B : A → Type 0 gives a type B x at x and a type B y at y. You already hold a term b : B x, yet the goal demands a term of type B y!
+（想看看这座桥底层是怎么搭出来的？右键点击 transport 选择“查看类型与构造…”，里面用等式消去子 J 和目标族 λw. λq. B w 把“沿相等搬运”封装成了这张卡片！）`,
+    en: `Now that you can construct equality evidence, let's put it to work—as a bridge that carries data across related types (“Transport”)!
 
-To the type checker, B x and B y are written differently, so b cannot be submitted directly. With the equality bridge p : Id A x y, however, the eliminator J can carry material from the starting room B x across to the target room B y!
+Read the context Γ: x and y are two points in A, and p : Id A x y is evidence that x equals y. Meanwhile, a type family B : A → Type 0 gives a room B x at x and a room B y at y. You already hold an item b : B x, yet the goal demands a term in B y!
 
-The canvas already wires up J's surrounding frame (type A, start x, motive λw. λq. B w, endpoint y, and proof p), leaving just one missing slot for the “starting material”: if the endpoint were still at x itself, which available term already lives in B x?`
+To the type checker, B x and B y look different, so you cannot submit b directly. With the equality bridge p, however, the theorem card “transport” carries cargo from the starting room B x safely across to the destination room B y!
+
+On the canvas, A, B, x, y, and the bridge p are already connected to transport, leaving only the final slot for the “starting cargo” of type B x. Which item in Γ lives in B x and is ready to cross the bridge?
+
+(Curious how the bridge itself is built? Right-click transport and select “View type and construction…” to inspect the equality eliminator J and motive λw. λq. B w inside!)`
   },
   journey_induction: {
-    'zh-CN': `主线最后一关！我们要把前面学到的函数、类型族、递归和相等证据全都串起来，完成你的第一个正式数学归纳证明：对每一个自然数 n，都有 add n 0 = n（任意自然数加上 0 还是它自己）。
+    'zh-CN': `终于来到主线的最后一关！我们要证明一个经典的数学事实：“任何自然数加上 0 还是它自己（add n 0 = n）”。
 
-仔细看目标 Π (n : ℕ) → Id ℕ (add n 0) n：外层用 λn 接收任意的 n，里面再用 ind_nat 对 n 做归纳——没错，ind_nat 不仅能像刚才那样递归算出数字，还能一步一步递归构造“证明”！
-• 起点（n = 0）：因为 add 0 0 会直接计算成 0，所以零分支里的 refl 已经帮我们证明好了 add 0 0 = 0；
-• 接力（n = suc k）：现在只剩下后继分支“λk. λih. ?”需要你补全！在这里，你拿到了前一个数 k，以及接力棒 ih : Id ℕ (add k 0) k（也就是已经证明好的“k + 0 = k”）。而按加法的计算规则，目标左边 add (suc k) 0 会自动算成 suc (add k 0)，所以这个空槽期待的证明是：Id ℕ (suc (add k 0)) (suc k)。
+完整的定理已经收在卡片“add_zero”里了；而这一关把数学归纳法最核心的那一环——“接力一步”单独请到了桌面上，让你亲手把证明往前推一阶！看看 Γ 里给你的两样宝贝：
+• 前一个自然数 k : ℕ；
+• 接力棒 ih : Id ℕ (add k 0) k —— 表示“k + 0 = k”这件事已经证明好啦！
+而下方的目标向前跨了一步：Id ℕ (add (suc k) 0) (suc k)。因为加法 add 按第一个参数递归，所以检查器会自动把左边的 add (suc k) 0 算成 suc (add k 0)——也就是说，你需要证明的是“suc (add k 0) = suc k”！
 
-看看手里新发的助手 suc_cong：它接收两个自然数 a、b，以及“a = b”的相等证据，就能把证据升级成“suc a = suc b”！配合引理区的 add 和起点 0，想想该把哪两个数以及接力棒 ih 依次传给 suc_cong？`,
-    en: `Welcome to the final boss of the main journey! Let's unite functions, type families, recursion, and equality into your first real proof by induction: for every natural number n, add n 0 = n.
+再看画布上摆好的助手卡片 suc_cong：它的本领是“只要给我两个自然数，再给我它们相等的证明，我就能证明它们的后继也相等”。题目已经帮你把 add k 0 和 k 传进去了，最后一个空槽正等着“add k 0 与 k 相等的证据”！
 
-Look at the goal Π (n : ℕ) → Id ℕ (add n 0) n: an outer λn introduces any n, and ind_nat recurses on n—this time building a proof at every step instead of a number!
-• Base case (n = 0): because add 0 0 computes straight to 0, the pre-filled refl already proves add 0 0 = 0.
-• Step case (n = suc k): only the successor branch “λk. λih. ?” is left for you! Here you have the previous number k and the relay baton ih : Id ℕ (add k 0) k (the induction hypothesis that k + 0 = k). By addition's computation rule, add (suc k) 0 reduces to suc (add k 0), so your empty slot needs a proof of Id ℕ (suc (add k 0)) (suc k).
+抬头看看 Γ：谁正好就是这份接力棒呢？填好过关之后，别忘了右键点击卡片库里的 add_zero（选择“查看类型与构造…”），看看 refl 怎样稳住起点 0、再用 ind_nat 把你刚刚这一步接力连成覆盖全部自然数的完整证明！`,
+    en: `Welcome to the finale of the main journey! Our goal is a classic theorem: “adding zero to any natural number leaves it unchanged (add n 0 = n).”
 
-Look at your new helper suc_cong: give it two natural numbers a, b and evidence of Id ℕ a b, and it returns evidence of Id ℕ (suc a) (suc b)! Using add from Lemmas and 0, what two numbers and baton ih should you pass to suc_cong?`
+The complete theorem already lives in the card “add_zero”; here, we zoom in on the heart of mathematical induction—the relay step from k to suc k! Check the two treasures in Γ:
+• the previous number k : ℕ;
+• the relay baton ih : Id ℕ (add k 0) k, telling you that “k + 0 = k” is already proved!
+Meanwhile, the target steps forward by one: Id ℕ (add (suc k) 0) (suc k). Because addition recurses on its first argument, the checker computes add (suc k) 0 to suc (add k 0)—so you need to prove “suc (add k 0) = suc k”!
+
+Look at the helper card suc_cong on the canvas: give it two numbers and a proof that they are equal, and it proves their successors are equal too. The canvas already passes add k 0 and k into suc_cong, leaving just the final evidence slot for why add k 0 equals k.
+
+Look at Γ: which item is that exact relay baton? Once you pass, try right-clicking add_zero in the card shelf (“View type and construction…”) to see how refl settles 0 and ind_nat chains this exact step across every natural number!`
   },
   L2: {
     'zh-CN': `欢迎来到函数工坊！先来看看这一关的条件与目标：条件区里已经有了两个类型 A、B，以及一个现成的项 x : A；而下方的目标类型是 B → A——要你建造一台“接收 B、返回 A”的函数机器。

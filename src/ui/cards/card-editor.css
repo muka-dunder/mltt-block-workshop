@@ -1,0 +1,48 @@
+.card-editor { position: fixed; inset: auto; margin: 0; box-sizing: border-box; width: min(1100px, calc(100vw - 16px)); height: min(780px, calc(100dvh - 16px)); max-width: none; max-height: none; padding: 0; overflow: hidden; color: #dfe6f0; background: #111722; border: 1px solid #394659; border-radius: 18px; box-shadow: 0 16px 65px #0009; }
+.card-editor[open] { display: flex; flex-direction: column; }
+.card-editor.is-active { border-color: #708aa8; box-shadow: 0 22px 75px #000a; }
+.card-editor-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; padding: 20px 24px 14px; cursor: grab; touch-action: none; user-select: none; }
+.card-editor-heading:active { cursor: grabbing; }
+.card-editor-navigation { display: flex; align-items: center; gap: 8px; }
+.card-editor h2 { margin: 0 0 5px; font-size: 22px; }
+.card-editor p { color: #9caec4; line-height: 1.7; margin: 0; }
+.card-editor-intro { font-size: 14px; }
+.card-editor button { flex: none; border: 1px solid #394659; border-radius: 9px; padding: 9px 16px; background: #202b3b; color: #e0eaf8; cursor: pointer; white-space: nowrap; }
+.card-editor button:disabled { opacity: .4; cursor: default; }
+.card-editor button:hover:not(:disabled) { background: #2c3b4f; }
+.card-editor .card-editor-close { padding: 3px 11px; font-size: 24px; background: transparent; }
+.card-editor-form { display: grid; grid-template-columns: minmax(150px, 1fr) minmax(180px, 1.6fr) 120px; gap: 16px; padding: 0 24px 18px; }
+.card-editor-form label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: #aabbd0; }
+.card-editor input, .card-editor select, .card-editor textarea { box-sizing: border-box; width: 100%; min-width: 0; padding: 9px 11px; color: #e0eaf8; background: #1a2433; border: 1px solid #3a475a; border-radius: 8px; font: inherit; }
+.card-editor-main { position: relative; display: flex; flex: 1; min-height: 0; border-block: 1px solid #293444; }
+.card-editor-blocks { position: absolute; top: 8px; left: 8px; z-index: 5; }
+.card-editor-workspace { flex: 1; min-width: 0; position: relative; }
+.card-editor-explanation-panel { box-sizing: border-box; display: flex; width: 280px; flex: none; padding: 16px; border-left: 1px solid #293444; background: #151e2b; }
+.card-editor-explanation-panel label { display: flex; flex: 1; flex-direction: column; gap: 10px; min-height: 0; font-size: 14px; color: #aabbd0; }
+.card-editor .card-editor-explanation { flex: 1; min-height: 0; resize: none; line-height: 1.75; }
+.card-editor-explanation[readonly] { background: transparent; border-color: transparent; padding: 0; }
+.card-editor-feedback { flex: none; padding: 10px 24px; border-bottom: 1px solid #293444; background: #151e2b; }
+.card-editor-feedback h3 { margin: 0 0 5px; font-size: 13px; color: #9fafc4; }
+.card-editor-selection { max-height: 84px; overflow: auto; font: 14px/1.6 ui-monospace, monospace; color: #d6e6f7; white-space: pre-wrap; overflow-wrap: anywhere; }
+.card-editor-selection.is-invalid { color: #e9b6a6; }
+.card-editor-footer { display: flex; align-items: center; gap: 10px; padding: 14px 24px; }
+.card-editor-result { flex: 1; min-width: 0; font-size: 14px; color: #aebcd0; overflow-wrap: anywhere; }
+.card-editor-result.is-invalid { color: #f1ae9e; }
+.card-editor-result.is-valid { color: #98d6b3; }
+.card-editor .card-editor-readonly { margin: 0 24px 14px; padding: 10px 12px; color: #c5d5ea; border: 1px solid #3a475a; border-radius: 8px; background: #1a2433; font-size: 14px; }
+.card-editor .card-editor-delete { color: #f0b5ab; border-color: #73504e; }
+.card-editor [hidden] { display: none !important; }
+@media(max-width: 760px) {
+  .card-editor { width: calc(100vw - 16px); height: calc(100dvh - 16px); border-radius: 12px; }
+  .card-editor-heading { padding: 14px 16px 10px; }
+  .card-editor-form { grid-template-columns: minmax(120px, 1fr) 105px; gap: 10px; padding: 0 16px 12px; }
+  .card-editor-description-label { grid-column: 1 / -1; grid-row: 2; }
+  .card-editor-main { flex-direction: column; }
+  .card-editor-workspace { flex: 1; min-height: 150px; }
+  .card-editor-explanation-panel { width: 100%; height: 128px; padding: 10px 12px; border-left: 0; border-top: 1px solid #293444; }
+  .card-editor-explanation-panel label { gap: 5px; }
+  .card-editor-footer { padding: 10px 12px; flex-wrap: wrap; }
+  .card-editor-result { flex-basis: 100%; }
+  .card-editor-feedback { padding: 8px 12px; }
+  .card-editor-selection { max-height: 64px; font-size: 13px; }
+}

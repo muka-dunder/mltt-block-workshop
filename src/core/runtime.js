@@ -35,7 +35,7 @@
   // ---------------- Definitions (transparent lemmas) ----------------
   let DEFS = new Map();
   const clearDefs = () => { DEFS = new Map(); };
-  const define = (name, ty, body) => { DEFS.set(name, { ty, body }); };
+  const define = (name, ty, body, declarationId) => { DEFS.set(name, { ty, body, declarationId }); };
 
   // ---------------- Values ----------------
   const vU = (l) => ({ t: 'U', l });

@@ -86,11 +86,17 @@
     }
   }
 
-  // Lemma add (transparent definition): lambda m n. natrec m (lambda _.Nat) n (lambda k ih. suc ih)
-  const ADD_TY = Pi('_', NAT, Pi('_', NAT, NAT));
-  const ADD_BODY = Lam('m', Lam('n',
-    NatRec(Var(1), Lam('_', NAT), Var(0), Lam('k', Lam('ih', SUC(Var(0)))))));
-  define('add', ADD_TY, ADD_BODY);
+  const cards = (typeof window === 'undefined' && typeof module === 'object' && module.exports
+    ? require('../core/preset-cards.js') : globalThis.MLTTCreatePresetCards)(M);
+  for (const card of cards) {
+    const probe = { type: 'tt_answer', inputs: { TERM: { type: 'tt_symbol', fields: { REF: card.id } } } };
+    const checked = M.checkWorkshop({ givens: [], entry: true }, probe, cards.map(item => item.declaration));
+    if (!checked.ok) throw checked.error || new Error('Invalid preset card: ' + card.name);
+    card.typeText = checked.declarations.find(item => item.id === card.id).typeText;
+    define(card.name, M.elabBlock(card.declaration.inputs.TYPE, [], { symbols: checked.symbols }),
+      M.elabBlock(card.declaration.inputs.VALUE, [], { symbols: checked.symbols }), card.id);
+  }
+  const ADD_TY = M.DEFS.get('add').ty, ADD_BODY = M.DEFS.get('add').body;
 
   const syntax = { v, Uo, pi, sigma, lam, app, pair, fst, snd, id, natrec, Jop, unitrec, sigind, absurd, ref, NATo, REFLo, ZEROo, EMPTYo, UNITo, STARo, nat, not };
   const foundations = typeof window === 'undefined' && typeof module === 'object' && module.exports
@@ -160,5 +166,5 @@
     });
   });
 
-  return { levels, ADD_TY, ADD_BODY, nat, close };
+  return { levels, cards, ADD_TY, ADD_BODY, nat, close };
 });

@@ -11,6 +11,8 @@ import { createSharing } from './sharing/share.js';
 import { ensurePresetProblem } from './problems/preset-problems.js';
 import { createAnswerPreview } from './problems/solutions.js';
 import { createSeriesNavigation } from './navigation/series-navigation.js';
+import { createCardLibrary } from './cards/card-library.js';
+import { createCardEditor } from './cards/card-editor.js';
 
 (function () {
   'use strict';
@@ -39,15 +41,31 @@ import { createSeriesNavigation } from './navigation/series-navigation.js';
   let compactShelf = null;
   let custom = null, sharing = null;
   let answerPreview = null;
+  let cardEditor = null;
+  const cards = createCardLibrary({ inspect: record => cardEditor.inspect(record),
+    edit: record => cardEditor.open(record),
+    requestDelete: record => deleteCard(record),
+    onRemove: ids => {
+      answerPreview?.removeCardReferences(ids);
+      custom?.removeCardReferences(ids);
+      cardEditor?.removeCardReferences(ids);
+    },
+    onChange: () => { refreshWorkshop(); sharing?.scheduleSync(); } });
   const navigation = createSeriesNavigation({ getLevels: () => LEVELS, getIndex: () => state.index, loadLevel });
 
   const workshop = createWorkshop({ getWorkspace: () => workspace, getLevel: () => state.level,
-    ensureAnswer, goalText, toJson });
+    ensureAnswer, goalText, toJson, cards, openCardEditor: kind => cardEditor.open(null, kind) });
   const { toolboxXml, checkConstruction, renderSelection, refreshWorkshop } = workshop;
   const { refreshVars, highlightBinderFor, remapCreatedBindings } = createVariableTools({ getWorkspace: () => workspace,
     getBusy: () => state.busy, setBusy: value => { state.busy = value; } });
 
   // ---------- Utilities ----------
+  function deleteCard(record) {
+    const deleted = cards.remove(record.id);
+    setStatus(() => window.I18N.locale === 'zh-CN'
+      ? '已删除卡片及画布引用。' + (deleted.size > 1 ? '相关版本和依赖它的玩家卡片也已清理。' : '')
+      : 'Card and canvas references deleted.' + (deleted.size > 1 ? ' Related revisions and dependent player cards were also removed.' : ''), 'ok');
+  }
   function renderLanguage() {
     document.title = 'MLTT ' + t('brand') + ' · v' + APP_VERSION;
     $('.brand span').textContent = t('brand') + ' · v' + APP_VERSION;
@@ -440,7 +458,14 @@ import { createSeriesNavigation } from './navigation/series-navigation.js';
       getAnswerMode: () => !!answerPreview?.active,
       onChange: () => { if (!state.loading) sharing?.scheduleSync(); } });
     loadLevel(state.index);
+    cardEditor = createCardEditor({ Blockly, theme: workspace.getTheme(), toJson,
+      validate: record => cards.validate(record), onSave: record => cards.save(record),
+      onDelete: deleteCard,
+      getInspectionCards: declaration => cards.exportUsed(declaration),
+      getInspectionDeclarations: declaration => cards.declarations(declaration),
+      getCards: () => cards.list().map(card => ({ ...card, blockType: 'tt_card' })) });
     custom = createCustomMode({ workspace, state, notes: () => notes, levels: () => LEVELS, loadLevel, toJson,
+      cards,
       refresh: () => { answerBlock = ensureAnswer(); refreshVars(); refreshWorkshop(); renderLanguage(); renderPanel(); },
       status: (message, kind) => setStatus(() => esc(message), kind),
       onChange: () => { if (!state.loading) sharing?.scheduleSync(); },
@@ -451,7 +476,7 @@ import { createSeriesNavigation } from './navigation/series-navigation.js';
     custom.init();
     sharing = createSharing({ exportSession: () => custom.exportSession(), importSession: payload => custom.importSession(payload),
       button: $('#shareBtn'), locale: () => window.I18N.locale, status: (message, kind) => setStatus(() => esc(message), kind) });
-    answerPreview = createAnswerPreview({ getWorkspace: () => workspace, getLevel: () => state.level,
+    answerPreview = createAnswerPreview({ getWorkspace: () => workspace, getLevel: () => state.level, cards,
       locale: () => window.I18N.locale, status: (message, kind) => setStatus(() => esc(message), kind),
       exportSession: () => custom.exportSession(), importSession: payload => custom.importSession(payload),
       refresh: () => {
@@ -469,6 +494,8 @@ import { createSeriesNavigation } from './navigation/series-navigation.js';
 
   // Debug/test entry points
   window.__mltt = {
+    get cards() { return cards; },
+    get cardEditor() { return cardEditor; },
     refreshVars: () => refreshVars(),
     check: () => doCheck(false),
     get state() { return state; },

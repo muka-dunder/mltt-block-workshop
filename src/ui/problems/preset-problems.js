@@ -4,6 +4,10 @@ import { toJson } from '../workspace/workspace-tools.js';
 const freshId = () => Blockly.utils.idGenerator.genUid();
 const ref = (uid, name) => window.LBM.encodeRef(uid, name);
 const bindingUid = id => 'b' + id + ':decl';
+const presetCheck = window.MLTT.checkWorkshop({ givens: [], entry: true },
+  { type: 'tt_answer', inputs: { TERM: { type: 'tt_zero' } } }, window.LEVELS.cards.map(card => card.declaration));
+if (!presetCheck.ok) throw presetCheck.error;
+const presetSymbols = presetCheck.symbols;
 
 export function termState(term, scope) {
   if (!term) throw new Error('Missing preset expression');
@@ -29,8 +33,9 @@ export function termState(term, scope) {
     if (term.name === 'ind_sigma') state.fields.B_LEVEL = String(term.eliminatorLevels?.[1] || 0);
   }
   else if (term.t === 'ref') {
-    state.type = Object.keys(window.MLTT.lemmaBlockNames).find(type => window.MLTT.lemmaBlockNames[type] === term.name);
-    if (!state.type) throw new Error('Missing dedicated lemma block: ' + term.name);
+    const card = window.LEVELS.cards.find(card => card.name === term.name);
+    if (!card) throw new Error('Missing preset card: ' + term.name);
+    state.type = 'tt_card'; state.fields.CARD = card.id;
   }
   else if (['pi', 'sigma'].includes(term.t)) {
     state.type = term.t === 'pi' ? 'tt_pi' : 'tt_sigma';
@@ -108,7 +113,7 @@ function ensurePreset(workspace, level, problem) {
       for (let i = 0; i < declarations.length; i++) {
         const binding = conditions[i], type = binding?.getInputTargetBlock('TYPE');
         if (binding?.type !== 'tt_binding' || !type) return false;
-        const prior = context.slice(0, i), got = M.elabBlock(toJson(type), scope, { nGivens: 0 });
+        const prior = context.slice(0, i), got = M.elabBlock(toJson(type), scope, { nGivens: 0, symbols: presetSymbols });
         if (!M.conv(M.evalTm(M.envOf(prior), got), M.evalTm(M.envOf(prior), declarations[i].ty))) return false;
         scope.push({ uid: bindingUid(binding.id), name: binding.getFieldValue('NAME') });
       }
@@ -129,7 +134,7 @@ function ensurePreset(workspace, level, problem) {
   function sameTerm(block, expression) {
     try {
       if (!block) return false;
-      const got = M.elabBlock(toJson(block), scope, { nGivens: 0 });
+      const got = M.elabBlock(toJson(block), scope, { nGivens: 0, symbols: presetSymbols });
       return M.conv(M.evalTm(M.envOf(context), got), M.evalTm(M.envOf(context), expression));
     } catch (_) { return false; }
   }

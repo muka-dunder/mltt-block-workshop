@@ -1,8 +1,9 @@
 import { ensurePresetProblem, createTerm } from './preset-problems.js';
 import { toJson } from '../workspace/workspace-tools.js';
+import { cleanCardSession } from '../cards/card-references.js';
 
 /** Reference answers temporarily occupy the regular canvas; the player's work is retained. */
-export function createAnswerPreview({ getWorkspace, getLevel, locale, status, exportSession, importSession, refresh }) {
+export function createAnswerPreview({ getWorkspace, getLevel, locale, status, exportSession, importSession, refresh, cards }) {
   const B = window.Blockly;
   const words = (zh, en) => locale() === 'zh-CN' ? zh : en;
   let original = null;
@@ -51,7 +52,8 @@ export function createAnswerPreview({ getWorkspace, getLevel, locale, status, ex
       connect(entry, 'RULE', rule);
       connect(entry.getInputTargetBlock('RESULT'), 'TERM', createTerm(workspace, level.solution, scope));
     } else connect(entry, level.inferTerm ? 'TYPE' : 'TERM', createTerm(workspace, level.solution, scope));
-    const result = window.MLTT.checkCustomProblem(toJson(root), []);
+    const json = toJson(root);
+    const result = window.MLTT.checkCustomProblem(json, cards.declarations(json));
     if (!result.ok) throw result.error || new Error('Incomplete reference answer');
     return root;
   }
@@ -79,6 +81,7 @@ export function createAnswerPreview({ getWorkspace, getLevel, locale, status, ex
   }
 
   return { show, reset, restore, setLocale,
+    removeCardReferences(ids) { if (original) original = cleanCardSession(original, ids); },
     exportState() { return original ? { originalWork: original } : null; },
     importState(saved) { original = saved?.originalWork || null; setLocale(); },
     get active() { return !!original; }

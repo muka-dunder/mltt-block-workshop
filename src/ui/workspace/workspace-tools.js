@@ -23,6 +23,7 @@ export function makeTheme() {
 
 // ---------- Blocks -> JSON ----------
 export function toJson(b) {
+  if (b.type === 'tt_card') return { type: 'tt_symbol', id: b.id, fields: { REF: b.getFieldValue('CARD') }, inputs: {} };
   const j = { type: b.type, id: b.id, fields: {}, inputs: {} };
   if (b.ttEntryVersion === 2) j.entryVersion = 2;
   if (['tt_rule_app', 'tt_rule_judgments'].includes(b.type)) j.premiseCount = b.ttPremiseCount ?? b.ttItemCount ?? 2;

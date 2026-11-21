@@ -60,6 +60,11 @@
 
   // Check every editable judgment and conclusion in the entry, including nested cards.
   function validateEntry(j, ctx, scope, opts, expected) {
+    const containsSelection = node => {
+      if (!node) return false;
+      return node.id === opts.inspection?.id || Object.values(node.inputs || {}).some(containsSelection);
+    };
+    if (opts.traceSelection && !containsSelection(j)) return;
     if (!j || j.type === 'tt_hole') fail('E_EMPTY', 'A slot is still empty', { src: j?.id }, null, 'emptySlot');
     if (opts.contextual && hasContext(j)) {
       const opened = openContext(j, ctx, scope, opts, false);
@@ -74,6 +79,12 @@
       if (goals.length) fail('E_EMPTY', 'A slot is still empty', { src: j.id }, null, 'emptySlot');
     };
     if (j.type === 'tt_judgment') {
+      if (opts.traceSelection) {
+        visit('TYPE');
+        if (containsSelection(inputs.TYPE)) return;
+        const ty = elabBlock(inputs.TYPE, scope, opts); sortOf(ctx, ty);
+        visit('TERM', value(inputs.TYPE)); return;
+      }
       if (!inputs.TYPE) fail('E_EMPTY', 'Fill the judgment type', { src: j.id }, null, 'emptySlot');
       const ty = elabBlock(inputs.TYPE, scope, opts); sortOf(ctx, ty);
       const tyV = value(inputs.TYPE);
@@ -161,6 +172,12 @@
     }
     if (inspection) {
       try {
+        // A separate inspection walk can recover a local type even when an
+        // unrelated unfinished slot prevented the normal check from reaching it.
+        if (!selection.location) {
+          try { validateEntry(entry, ctx, scope, { ...opts, traceSelection: true }); }
+          catch (error) { if (!(error instanceof CheckError)) throw error; }
+        }
         let selected = inspection.json;
         const find = j => { if (!j) return; if (j.id === inspection.id) selected = j; for (const child of Object.values(j.inputs || {})) find(child); };
         find(root);
@@ -168,9 +185,13 @@
         const selectedCtx = location?.ctx || ctx, selectedScope = location?.scope || scope, selectedOpts = location?.opts || opts;
         if (selected?.type === 'tt_binding') result.selectedType = printing.show(selectedCtx, elabBlock(selected.inputs?.TYPE, selectedScope, selectedOpts));
         else {
-          const selectedTerm = selected?.id === problem?.id || selected?.id === root?.id ? term : elabBlock(selected, selectedScope, selectedOpts);
-          if (selectedTerm) {
-            const type = location?.expected || infer(selectedCtx, selectedTerm);
+          const needsExpected = ['tt_lam', 'tt_pair', 'tt_refl', 'tt_hole', 'tt_if', 'tt_absurd'].includes(selected?.type);
+          let type = needsExpected ? location?.expected : undefined;
+          if (!type) {
+            const selectedTerm = selected?.id === problem?.id || selected?.id === root?.id ? term : elabBlock(selected, selectedScope, selectedOpts);
+            if (selectedTerm) type = infer(selectedCtx, selectedTerm);
+          }
+          if (type) {
             result.selectedType = printing.showVal(selectedCtx, type);
             result.selectedTypeValue = type; result.selectedScope = selectedScope; result.selectedCtx = selectedCtx;
           }

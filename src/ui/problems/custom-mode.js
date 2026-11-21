@@ -1,5 +1,6 @@
 import './custom-mode.css';
 import { versionedStorageKey } from '../version.js';
+import { cleanCardSession, removeCardBlocks } from '../cards/card-references.js';
 
 const STORAGE = versionedStorageKey('custom.workspace');
 const MODE = versionedStorageKey('workspace.mode');
@@ -30,7 +31,7 @@ export function configureLevelGlobals(level, contextLines, inferContext) {
 }
 
 export function createCustomMode({ workspace, state, notes, levels, loadLevel, refresh, status, toJson, onChange,
-  beforeModeChange, getAnswerState, onAnswerState, onRenderUI }) {
+  beforeModeChange, getAnswerState, onAnswerState, onRenderUI, cards }) {
   const zh = () => window.I18N.locale === 'zh-CN';
   const words = (cn, en) => zh() ? cn : en;
   let active = false, levelSession = null, timer = null;
@@ -50,6 +51,7 @@ export function createCustomMode({ workspace, state, notes, levels, loadLevel, r
   function exportSession() {
     return { version: 1, mode: active ? 'custom' : 'level', levelId: active ? 'custom' : state.level.id,
       workspace: Blockly.serialization.workspaces.save(workspace), notes: notes().exportState(),
+      cards: cards.exportUsed(Blockly.serialization.workspaces.save(workspace)),
       view: { scale: workspace.scale, x: workspace.scrollX, y: workspace.scrollY },
       ...(getAnswerState?.() ? { answerState: getAnswerState() } : {}) };
   }
@@ -62,6 +64,20 @@ export function createCustomMode({ workspace, state, notes, levels, loadLevel, r
     if (!active || state.loading) return;
     onChange?.();
     clearTimeout(timer); timer = setTimeout(save, 180);
+  }
+  function removeCardReferences(ids) {
+    const removed = ids instanceof Set ? ids : new Set(ids);
+    clearTimeout(timer); timer = null;
+    const count = removeCardBlocks(workspace, removed);
+    if (levelSession) levelSession = cleanCardSession(levelSession, removed);
+    for (const key of [STORAGE, LEVEL_STORAGE]) {
+      try {
+        const saved = JSON.parse(localStorage.getItem(key) || 'null');
+        if (saved) localStorage.setItem(key, JSON.stringify(cleanCardSession(saved, removed)));
+      } catch (_) { /* A missing or inaccessible saved canvas does not affect the active one. */ }
+    }
+    save();
+    return count;
   }
   function setModePreference() {
     try { localStorage.setItem(MODE, active ? 'custom' : 'level'); } catch (_) { /* Storage may be disabled. */ }
@@ -95,6 +111,7 @@ export function createCustomMode({ workspace, state, notes, levels, loadLevel, r
     document.querySelector('#overlay').classList.remove('show');
   }
   function restoreCanvas(payload, restoreNotes) {
+    cards.importRecords(payload.cards);
     state.loading = true;
     try {
       Blockly.Events.disable();
@@ -202,7 +219,7 @@ export function createCustomMode({ workspace, state, notes, levels, loadLevel, r
         workspace.getBlocksByType('tt_problem', false).length ? 'Select the problem you want to check.' : 'Drag a problem card from the left and place the content to check inside it.'), 'warn');
       return;
     }
-    const declarations = workspace.getTopBlocks(false).filter(b => b.type === 'tt_declare').map(toJson);
+    const declarations = [...cards.declarations(workspace.getTopBlocks(false).map(toJson)), ...workspace.getTopBlocks(false).filter(b => b.type === 'tt_declare').map(toJson)];
     const result = window.MLTT.checkCustomProblem(toJson(problem), declarations);
     if (result.ok) {
       const dependencies = (result.assumptions || []).map(a => a.name);
@@ -226,6 +243,6 @@ export function createCustomMode({ workspace, state, notes, levels, loadLevel, r
       }
     } catch (_) { /* Storage may be disabled or contain an older session. */ }
   }
-  return { init, setMode, renderUI, check, reset, selectedProblem, exportSession, importSession, scheduleSave,
+  return { init, setMode, renderUI, check, reset, selectedProblem, exportSession, importSession, scheduleSave, removeCardReferences,
     level: customLevel, get active() { return active; } };
 }

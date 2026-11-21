@@ -5,7 +5,7 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function (runtime, printing, checking) {
   'use strict';
 
-  const { Var, U, Pi, Sigma, Lam, App, Pair, Fst, Snd, Id, If, Absurd, Annot, Hole, Ref, Const,
+  const { Var, U, Pi, Sigma, Lam, App, Pair, Fst, Snd, Id, If, Absurd, Annot, Hole, Const,
     NAT, ZERO, SUC, BOOL, TRUE, FALSE, EMPTY, UNIT, STAR, REFL, vNe, evalTm, envOf, CheckError, fail } = runtime;
   const { infer, check, sortOf, buildCtx, checkLevel } = checking;
   const { showVal } = printing;
@@ -14,7 +14,6 @@
   const eliminatorTerms = (typeof window === 'undefined' && typeof module === 'object' && module.exports
     ? require('./eliminator-terms.js') : globalThis.MLTTCreateEliminatorTerms)(runtime, checking, eliminators.term);
   const eliminatorBlockNames = Object.fromEntries(Object.keys(eliminators.definitions).map(name => ['tt_eliminator_' + name, name]));
-  const lemmaBlockNames = { tt_lemma_add: 'add' };
   const entryChecking = (typeof window === 'undefined' && typeof module === 'object' && module.exports
     ? require('./entry-checking.js') : globalThis.MLTTCreateEntryChecking)(runtime, printing, checking, elabBlock);
   const { validateEntry, checkExplicitEntry, premiseNames } = entryChecking;
@@ -26,7 +25,6 @@
     opts = opts || {};
     if (!j) fail('E_EMPTY', 'No block here yet', null, null, 'noBlock');
     const src = j.id;
-    if (Object.hasOwn(lemmaBlockNames, j.type)) return Ref(lemmaBlockNames[j.type], src);
     if (Object.hasOwn(eliminatorBlockNames, j.type)) return eliminators.term(eliminatorBlockNames[j.type], src,
       [Number(j.fields?.A_LEVEL || 0), Number(j.fields?.B_LEVEL || 0)]);
     if (opts.contextual && entryChecking.hasContext(j)) {
@@ -210,7 +208,7 @@
         const name = String(d.fields && d.fields.NAME || '').trim();
         const kind = d.fields && d.fields.KIND;
         if (!name || /[\s:␟]/u.test(name)) fail('E_DECLARATION', 'Enter a symbol name without spaces or colons', { src: d.id }, null, 'declarationName');
-        if (names.has(name) || runtime.DEFS.has(name)) fail('E_DECLARATION', 'Symbol name is already used: ' + name, { src: d.id }, null, 'declarationDuplicate', { name });
+        if (names.has(name) || (runtime.DEFS.has(name) && runtime.DEFS.get(name).declarationId !== d.id)) fail('E_DECLARATION', 'Symbol name is already used: ' + name, { src: d.id }, null, 'declarationDuplicate', { name });
         if (!['assumption', 'axiom', 'definition'].includes(kind)) fail('E_DECLARATION', 'Unknown declaration kind', { src: d.id }, null, 'declarationKind');
         if (!d.id || byId.has(d.id)) fail('E_DECLARATION', 'Declaration needs a unique ID', { src: d.id }, null, 'declarationId');
         names.add(name);
@@ -272,7 +270,7 @@
       }
       for (const id of used) includeDependencies(id);
       const assumptions = declarations.filter(d => d.kind !== 'definition' && used.has(d.id));
-      if (canonical) return Object.assign(checkExplicitEntry(blockJson, opts, inspection), { declarations, assumptions });
+      if (canonical) return Object.assign(checkExplicitEntry(blockJson, opts, inspection), { declarations, assumptions, symbols });
       const entry = blockJson?.inputs?.TERM;
       const strictEntry = blockJson?.type === 'tt_problem' && !blockJson.inputs?.TYPE;
       let tm = elabBlock(blockJson, [], { ...opts, answerBinder: !!binders.length });
@@ -298,7 +296,7 @@
         result.ok = false;
         result.error = new CheckError('E_REQUIRE', 'This level requires the ' + (level.requireBlockName || level.requireEliminator || level.requireBlock) + ' block', null, null, 'requiredBlock', { name: level.requireBlockName || level.requireEliminator || level.requireBlock });
       }
-      const output = Object.assign(result, { term: tm, declarations, assumptions });
+      const output = Object.assign(result, { term: tm, declarations, assumptions, symbols });
       if (inspection) {
         const declaration = declarations.find(d => d.id === inspection.id);
         if (declaration) output.selectedType = declaration.typeText;
@@ -359,7 +357,7 @@
   return {
     elabBlock, checkBlocks, checkWorkshop, inspectWorkshop, checkCustomProblem,
     eliminatorNames: Object.keys(eliminators.definitions), eliminatorTerm: eliminators.term,
-    eliminatorBlockNames, lemmaBlockNames,
+    eliminatorBlockNames,
     ...eliminatorTerms,
   };
 });

@@ -88,6 +88,7 @@ const { chromium } = require('playwright');
           __mltt.notes.add();
         });
         await page.locator('.note-card[data-kind="user"] textarea').fill('Keep this notebook and scratch work');
+        await page.evaluate(() => __mltt.notes.focusTutorial());
         await page.locator('.note-card[data-kind="tutorial"] [data-action="collapse"]').click();
       }
       if (i === 1) await page.evaluate(() => {
@@ -106,7 +107,7 @@ const { chromium } = require('playwright');
         const entry = root.getInputTargetBlock('TERM');
         const conditions = entry.ttContexts;
         Blockly.common.setSelected(entry); __mltt.refreshWorkshop();
-        return { valid: MLTT.checkCustomProblem(toJson(root), []).ok, root: root.id, workspaceId: w.id,
+        return { valid: MLTT.checkCustomProblem(toJson(root), __mltt.cards.declarations(toJson(root))).ok, root: root.id, workspaceId: w.id,
           explicitContext: !!conditions,
           emptyContext: conditions?.count !== 0 ||
             (entry.getField('EMPTY_CONTEXT').isVisible() && !entry.getInput('CONTEXT0')),

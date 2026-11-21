@@ -1,6 +1,5 @@
 /** Small screens use the existing flyout as an overlay drawer. */
-export function installCompactShelf(workspace, { onChange } = {}) {
-  const button = document.querySelector('#blocksToggle');
+export function installCompactShelf(workspace, { onChange, button = document.querySelector('#blocksToggle') } = {}) {
   const flyout = workspace.getFlyout();
   if (!button || !flyout) return { setLocale() {} };
   const media = matchMedia('(max-width: 600px)');
@@ -48,15 +47,16 @@ export function installCompactShelf(workspace, { onChange } = {}) {
     window.Blockly.svgResize(workspace);
     onChange?.();
   }
-  button.addEventListener('click', () => {
+  const toggle = () => {
     if (open) flyout.hide();
     else {
       open = true;
       flyout.show(...latestDefinition);
       syncButton(); onChange?.();
     }
-  });
+  };
+  button.addEventListener('click', toggle);
   media.addEventListener('change', updateScreen);
   updateScreen(); setLocale();
-  return { setLocale };
+  return { setLocale, dispose() { media.removeEventListener('change', updateScreen); button.removeEventListener('click', toggle); } };
 }

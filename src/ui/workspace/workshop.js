@@ -1,5 +1,6 @@
 /* Block library and selection feedback. */
 import { refreshRuleCards } from './rule-feedback.js';
+import { cardPaletteXml } from '../cards/card-palette.js';
 
 const workshopMessages = {
   'zh-CN': {
@@ -17,7 +18,7 @@ const workshopMessages = {
 };
 export const wt = (key) => workshopMessages[window.I18N.locale][key];
 
-export function createWorkshop({ getWorkspace, getLevel, ensureAnswer, goalText, toJson }) {
+export function createWorkshop({ getWorkspace, getLevel, ensureAnswer, goalText, toJson, cards, openCardEditor }) {
   const $ = s => document.querySelector(s);
   const MLTT = window.MLTT;
   const t = window.I18N.t;
@@ -32,7 +33,6 @@ export function createWorkshop({ getWorkspace, getLevel, ensureAnswer, goalText,
     { name: 'Types', colour: '#5b8def', types: ['tt_pi', 'tt_sigma', 'tt_id', 'tt_nat', 'tt_bool', 'tt_empty', 'tt_unit', 'tt_U'] },
     { name: 'Terms', colour: '#4f9d76', types: ['tt_lam', 'tt_var', 'tt_app', 'tt_pair', 'tt_zero', 'tt_suc', 'tt_true', 'tt_false', 'tt_star', 'tt_refl', 'tt_let', 'tt_annot', 'tt_hole'] },
     { name: 'Eliminators', colour: '#c47a3d', types: [...Object.keys(MLTT.eliminatorBlockNames), 'tt_if', 'tt_absurd'] },
-    { name: 'Lemmas', colour: '#7b6ee0', types: Object.keys(MLTT.lemmaBlockNames) },
   ];
 
   function parseXml(str) {
@@ -79,6 +79,9 @@ export function createWorkshop({ getWorkspace, getLevel, ensureAnswer, goalText,
       xml += '<label text="' + esc(symbol.owner + ' · ' + symbol.name) + '"></label>';
       xml += '<block type="tt_var"><field name="REF">' + esc(symbol.value) + '</field></block>';
     }
+    const available = cards.list().filter(card => !card.preset || getLevel().custom || allBlocks ||
+      (getLevel().cardNames ? getLevel().cardNames.includes(card.name) : pal.has('tt_card')));
+    xml += cardPaletteXml(available, esc, true);
     for (const g of GROUPS) {
       const types = g.types.filter((t) => (t !== 'tt_var' || getLevel().custom || allBlocks) && (getLevel().custom || allBlocks || pal.has(t) || t === 'tt_binding'
         || ((t === 'tt_rule_pi_elim' || t === 'tt_rule_theorem') && (pal.has('tt_rule_app') || pal.has('tt_rule_judgments')))));
@@ -95,7 +98,8 @@ export function createWorkshop({ getWorkspace, getLevel, ensureAnswer, goalText,
 
   // ---------- Declarations and symbols ----------
   function declarationJson() {
-    return getWorkspace().getTopBlocks(false).filter(b => b.type === 'tt_declare').map(toJson);
+    const roots = getWorkspace().getTopBlocks(false).map(toJson);
+    return [...cards.declarations(roots), ...roots.filter(b => b.type === 'tt_declare')];
   }
 
   function checkConstruction() {
@@ -131,7 +135,7 @@ export function createWorkshop({ getWorkspace, getLevel, ensureAnswer, goalText,
   function refreshWorkshop() {
     window.GAME_SYMBOLS = getWorkspace().getTopBlocks(false).filter(b => b.type === 'tt_declare').map(b => ({ id: b.id, name: b.getFieldValue('NAME') }));
     lastWorkshopResult = checkConstruction();
-    const signature = JSON.stringify([getLevel().id, allBlocks, window.I18N.locale, window.GAME_SYMBOLS, localBinderSymbols(),
+    const signature = JSON.stringify([getLevel().id, allBlocks, window.I18N.locale, cards.list().map(card => card.id), window.GAME_SYMBOLS, localBinderSymbols(),
       getWorkspace().getAllBlocks(false).filter(b => ['tt_problem', 'tt_answer'].includes(b.type))
         .map(b => ((b.ttBinds && b.ttBinds.TERM) || []).map(uid => [uid, b.getFieldValue(b.ttNameFields[uid])]))]);
     if (signature !== toolboxSignature) {
@@ -158,6 +162,8 @@ export function createWorkshop({ getWorkspace, getLevel, ensureAnswer, goalText,
   }
 
   function bindControls() {
+    getWorkspace().registerButtonCallback('MAKE_AXIOM', () => openCardEditor('axiom'));
+    getWorkspace().registerButtonCallback('MAKE_THEOREM', () => openCardEditor('theorem'));
     getWorkspace().registerButtonCallback('OPEN_PROBLEM', () => {
       const answer = ensureAnswer();
       if (!answer) return;

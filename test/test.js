@@ -176,7 +176,9 @@ t('L13 Sigma fst: ordinary applications and lambdas elaborate', () => {
   const blk = { type: 'tt_answer', id: 'a1', binds: { TERM: ['uA', 'uB'] }, names: { uA: 'A', uB: 'B' },
     inputs: { TERM: lambda('uP', 'p', functionBlock('ind_sigma', variable('uA', 'A'), variable('uB', 'B'), variable('uP', 'p'),
       lambda('uM', '_', variable('uA', 'A')), lambda('ua', 'a', lambda('ub', 'b', variable('ua', 'a'))))) } };
-  const r = M.checkBlocks(levels[13], blk);
+  const functionLevel = { givens: [], answerBinders: levels[13].answerBinders.slice(0, 2),
+    goal: M.Pi('p', M.Sigma('x', M.Var(1), M.App(M.Var(1), M.Var(0))), M.Var(2)) };
+  const r = M.checkBlocks(functionLevel, blk);
   if (!r.ok) throw new Error(r.error.message);
 });
 

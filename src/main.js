@@ -24,6 +24,7 @@ async function start() {
   await import('./core/entry-checking.js');
   await import('./core/block-checking.js');
   await import('./core/mltt.js');
+  await import('./core/preset-cards.js');
   await import('./levels/foundations.js');
   await import('./levels/advanced.js');
   await import('./levels/proofs.js');

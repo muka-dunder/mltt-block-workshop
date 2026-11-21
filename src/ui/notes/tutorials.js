@@ -167,46 +167,32 @@ That gives us the introduction rule for the unit type: ★ : 1 (“the star ★ 
 In the judgment on your canvas, the target type to the right of the colon is 1, and the term slot on the left is empty. The toolbox offers both the type block 1 and the element block ★—keep the roles of “type” and “term” distinct as you fill in the slot!`
   },
   L9: {
-    'zh-CN': `上一关我们学了单元类型 1 的“引入规则”（造出 ★ : 1）；这一关我们来学它的“消去规则”——如果别人递给你一个类型为 1 的未知变量 u : 1，你该如何利用它来完成任务？
+    'zh-CN': `上一关认识了单元类型 1 的元素 ★。这一关给出 u : 1、类型族 C : 1 → Type，以及基本情况 c : C ★，要求构造 C u。
 
-先读读本关的条件区：
-• C : 1 → Type 是一个“目标类型族”（也叫动机 Motive）：它告诉我们，对于不同的单元值 x : 1，我们想要构造的目标类型是 C x。
-• u : 1 是我们手头拿到的一个未知单元值；而本关的最终目标正是构造出 C u。
-• c : C ★ 是我们已经准备好的“基本情况”：也就是当那个单元值恰好是五角星 ★ 时，我们已经有一个属于 C ★ 的现成结果 c。
+虽然 1 只有一个标准元素，但变量 u 尚未计算成 ★，所以检查器不会直接把 C ★ 当成 C u。ind_unit 负责完成这一步消去。
 
-你可能会问：“既然单元类型 1 里面只有 ★ 这一个元素，那 u 肯定就是 ★ 呀！为什么不能直接把 c : C ★ 当作 C u 交上去呢？”
-因为在类型检查器眼里，u 毕竟还是一个抽象的变量名，写的字面形式是 C u 而不是 C ★，检查器不会凭猜测自动把变量 u 替换成 ★。我们需要一块专门的消去子积木“unitrec”（单元递归/消去）来正式搭起这座桥梁！
+ind_unit 现在是一枚普通函数符号。用三块函数应用积木逐个传参：第一个参数是单元值，第二个参数是类型族，第三个参数是在 ★ 处准备好的基本情况。每次把前一步放进应用的函数槽，再把下一个参数放进参数槽，便能接成长应用。
 
-unitrec 的含义就像数学归纳法（只不过这里只有 1 种情况）：只要你交出①要被分析的单元值（u 槽）、②目标随输入怎么变（类型族 C 槽），以及③在唯一标准元素 ★ 处该怎么处理（基本情况 c 槽），它就能帮你把 C ★ 合法地推广到任意的 C u！`,
-    en: `In the last level we met the introduction rule for the unit type (★ : 1). Now let's learn its elimination rule: if someone hands you an arbitrary variable u : 1, how do you use it?
+可以先只传入一个或两个参数，查看剩余函数的类型；三个参数齐全后，结果类型应当与目标 C u 一致。`,
+    en: `The context supplies u : 1, a family C : 1 → Type, and a base case c : C ★. Your goal is C u. Even though unit has only one canonical element, the variable u has not computed to ★, so C ★ and C u are not automatically interchangeable.
 
-Let's read the declarations in the context:
-• C : 1 → Type is a “type family” (often called the motive): for any unit value x : 1, C x describes the result type we want to produce at x.
-• u : 1 is an unknown unit value given to us, and our goal at the bottom is to produce a term of type C u.
-• c : C ★ is the “base case”: it provides the desired result specifically when the input is the canonical star ★.
+ind_unit is an ordinary curried function. Use application blocks to supply its three arguments in order: the unit value, the type family, and the base case at ★. Put the previous application in the next function slot and the next argument in its argument slot.
 
-You might wonder: “Since ★ is the only element of type 1, mustn't u be ★? Why can't I just submit c : C ★ directly for the goal C u?”
-Because to the type checker, u is still a variable, so the written type C ★ does not automatically match C u! To bridge that gap, we use the unit eliminator block “unitrec”.
-
-Think of unitrec as case analysis on a type with only one possible case: if you tell it (1) which unit value you are inspecting, (2) which type family describes your target, and (3) what value to return in the single case where the input is ★, unitrec produces a valid term of type C u for any u : 1.`
+Supplying only one or two arguments leaves a function waiting for the rest. With all three arguments supplied, its result should have the required type C u.`
   },
   L10: {
-    'zh-CN': `我们已经集齐了单元类型 1 的“引入规则（★）”和“消去规则（unitrec）”。现在，是时候见证第三个黄金问题——“计算规则（Computation Rule）”了：如果我们在 unitrec 要分析的单元值槽位里，不放未知的变量 u，而是直接塞进刚刚引入的具体元素 ★，会发生什么？
+    'zh-CN': `这一关观察单元类型的计算规则：ind_unit 遇到标准元素 ★ 时，结果会计算回基本情况。
 
-想想看：unitrec 的作用是“去看看第一个槽里的单元值是不是 ★；如果是 ★，就把第三个槽里的基本情况 c 拿出来作为结果”。那么，当你第一个槽里明明就放着货真价实的 ★ 时，这台消去机器根本不用犹豫，当场就会化简（归约）成基本情况 c！
-用公式写出来，就是：
-unitrec ★ C c ≡ c
-这里的“≡”读作“定义相等（Definitional Equality）”，意思是两边的表达式在计算意义下是完全一模一样的东西，类型检查器会自动把左边算成右边。
+条件区给出 C : 1 → Type 和 c : C ★。目标同样是 C ★，但这一关要求实际使用 ind_unit，观察消去如何与引入配合，不能直接提交 c。
 
-看看画布：目标类型是 C ★，而且答案槽里已经为你冻结好了一块 unitrec 积木骨架（为了让你专门体验完整的消去表达式是如何通过计算的）。对照上一关 unitrec 三个插槽各自的职责，想一想这次第一个槽位 u 应该换上哪块积木，才能让它正好代表在 ★ 处的计算？`,
-    en: `Now that we have seen the introduction rule (★) and elimination rule (unitrec) for the unit type, we arrive at the third golden question—its “computation rule”: what happens when we feed the canonical element ★ itself directly into unitrec?
+画布里冻结的是普通函数应用骨架，函数位置最终指向 ind_unit。三个参数槽按由内到外的顺序填写：单元值、类型族、基本情况。它们都使用已有的函数应用积木，没有专用的消去子容器。
 
-Think about what unitrec does: it inspects a unit value and says, “In the case where this unit value is ★, return the base case c.” So if the unit value you hand it is literally ★, the eliminator can immediately simplify (reduce) to the base case c!
-In symbols, this computation rule is written:
-unitrec ★ C c ≡ c
-The triple bar “≡” means “definitional equality”: to the type checker, the two sides compute to the exact same value, and either one has type C ★.
+想一想：第一个参数应当放哪个标准元素，才能让整个表达式计算成 c？填好后可以查看答案，比较计算前的应用和计算后的基本情况。`,
+    en: `This level studies the unit computation rule: applying ind_unit to the canonical element ★ computes to its base case. The context gives C : 1 → Type and c : C ★, and the goal is C ★. Although c already has that type, this exercise requires an actual use of ind_unit.
 
-On your canvas, a frozen unitrec skeleton is already placed in the answer slot so you can see this computation rule in action. Review the roles of the three slots inside unitrec—the unit value being eliminated, the result type family, and the base case at ★—and fill them in so the whole expression has type C ★.`
+The frozen structure uses ordinary application blocks whose function head is ind_unit. Fill the three argument slots from the innermost application outward: the unit value, the family, and the base case. There is no dedicated eliminator container.
+
+Which first argument makes the entire application compute to c? Compare the completed function application with its result in answer mode.`
   },
   L11: {
     'zh-CN': `认识了“只有一个元素”的单元类型 1 之后，我们来认识它的孪生兄弟——“连一个元素都没有”的“空类型（Empty Type）”，记作数字 0。
@@ -249,44 +235,32 @@ Be careful not to confuse the two new blocks in the toolbox:
 Since the empty slot is on the left of the colon (a term position), use the block that builds an actual pair, and make sure its first and second slots match the required types A and B in order.`
   },
   L13: {
-    'zh-CN': `上一关我们学会了用配对积木把两个项“打包”成一对；这一关我们要学习它的消去规则——如果别人给了你一个打包好的序对，怎样用“sigma_ind”积木把它“拆包”并取出里面的第一项？
+    'zh-CN': `这一关要构造一个函数，从依赖对 Σ (x : A) × B x 中取出第一项。条件里的 A 是类型，B : A → Type 是类型族；收到的包裹 p 的第二项类型会依赖第一项。
 
-而且这一关的序对是更强大的完全体——“依赖对（Σ 类型）”，写作 Σ (x : A). B x！
-还记得第 7 关的依赖函数 Π 吗？在依赖对 Σ (x : A). B x 中，盒子左格子里装的是第一项 x : A，而右格子里装的第二项的类型是 B x——也就是说，第二项是什么类型，取决于第一项装的具体是谁！
-本关的目标类型是 (Σ x : A. B x) → A：请你造一台函数机器（别忘了目标是带箭头的函数类型，最外层要先用 λ 接收那个包裹！），它接收一个依赖对包裹，然后把里面的第一项（类型 A）取出来返回。
+ind_sigma 是普通函数，参数顺序为 A、B、p、目标族、分支函数。先用 λ 引入 p，再在函数体中用应用积木依次传入这五个参数。符号上的 A : Type 和 B : Type 数字用于选择类型层级，本关都保持 0；真正的 A 与 B 仍作为前两个实参传入。
 
-当你把消去子积木“sigma_ind”放进函数体时，会看到三个需要填写的区域，我们一层一层来读懂它：
-1. 第一行“p =”槽：放入你要拆开的那个序对包裹（就是外层 λ 刚收到的那个参数）。
-2. 第二行“目标族 λ _ ▸”槽：用来向检查器声明“整个拆包过程最终想要产出什么类型”。本关无论拆哪个包裹，最终都只想要一个类型 A 的结果。
-3. 第三行“归纳步骤 λ a λ b ▸”槽：这是真正动手拆包的地方！sigma_ind 已经贴心地帮你把包裹拆开，变出了两个局部变量——代表左格子的第一项 a（类型为 A）和代表右格子的第二项 b（类型为 B a）。站在这一行的插槽里，想想该把拆出来的哪一项交出去，才能满足目标要求的 A？`,
-    en: `In the last level you packed two items into a pair. Now let's learn the elimination rule for pairs: given a packaged pair, how do we unpack it with “sigma_ind” to extract its first component?
+目标族本身也是函数：它接收整个依赖对，说明我们最终想得到什么类型。本题不论收到哪个依赖对，都希望得到 A。
 
-Notice that the input type here is a full “dependent pair (Σ-type)”, written Σ (x : A). B x!
-Just as in a dependent function (Π), in a dependent pair the type of the second component B x depends on the specific value x stored in the first component.
-Your goal is the function type (Σ x : A. B x) → A: build a function (don't forget to start with an outer λ to receive the pair!) that takes a dependent pair and returns its first component of type A.
+分支函数用两层普通 λ 接收 a : A 和 b : B a，然后返回所需的结果。这两个名字由你放入的 λ 引入，不会由 ind_sigma 卡片自动生成。想一想，应当返回 a 还是 b？`,
+    en: `Construct a function extracting the first component of a dependent pair Σ (x : A) × B x. Here A is a type and B : A → Type is a family: the second component's type depends on the first component.
 
-Inside that function, the eliminator block “sigma_ind” unpacks a pair using three slots:
-1. The “p =” slot: the pair term you want to unpack (the parameter received by your outer λ).
-2. The “motive λ _ ▸” slot: a type expression stating what result type the entire unpacking operation should produce. Here, no matter which pair we unpack, we always want a result of type A.
-3. The “step λ a λ b ▸” slot: the unpacking step itself! The block automatically binds two local variables for the unpacked contents—the first component a : A and the second component b : B a. Inside this step slot, decide which of those unpacked components to return.`
+ind_sigma is an ordinary function taking five arguments: A, B, the pair p, a motive, and a branch function. Introduce p with λ, then use ordinary applications to pass these arguments in order. The universe fields on the symbol stay at 0 for this lesson; A and B are still passed as actual arguments.
+
+The motive is a function describing the result type for each pair. Here the desired result is always A. The branch uses two ordinary lambdas to receive a : A and b : B a. These lambdas introduce the names; the eliminator does not create hidden local variables. Which component should the branch return?`
   },
   L14: {
-    'zh-CN': `上一关我们用 sigma_ind 从依赖对里取出了第一项（相当于定义了投影函数 fst）；这一关我们趁热打铁，来写一个取出“第二项”的函数（相当于投影函数 snd）！
+    'zh-CN': `这一关从普通乘积 A × B 中取出第二项。与上一关不同，条件里的 B 只是一个类型，不是 A → Type 的类型族。
 
-先看本关的目标类型：(A × B) → B。也就是说，我们要建造一台函数机器，它接收一个普通序对 A × B，然后返回里面类型为 B 的第二项。
+ind_sigma 的第二个参数仍然需要类型族，因此要用普通 λ 构造常量族 λa. B：无论第一项 a 是什么，第二项的类型都固定为 B。第一个参数是 A，第三个参数是外层 λ 收到的依赖对 p。
 
-这里有一个很自然的问题：“为什么对依赖对 Σ (x : A). B x 不能直接毫无条件地取出第二项，而对普通积类型 A × B 却可以轻松取出第二项得到类型 B 呢？”
-想一想就能明白：在上一关的依赖对 Σ (x : A). B x 里，第二项的类型 B a 死死依赖于第一项的具体值 a；而在本关的普通积类型 A × B（即 Σ (_ : A) × B）里，第二项的类型就是固定不变的 B，根本不依赖第一项是谁！因此，整个函数的返回类型就可以干脆利落地写成固定的 B。
+余下两个参数也用普通 λ 构造。目标族接收整个 p，说明结果应属于什么类型；分支函数依次接收 a 和 b，再返回所需的分量。
 
-搭建的整体骨架和上一关几乎一模一样：最外层用 λ 接收序对包裹，函数体里放 sigma_ind 来拆包。但请特别留意最后两行：这一次我们整个拆包过程想要的目标类型（“目标族 λ _ ▸”槽）变成了谁？而在“归纳步骤 λ a λ b ▸”拆出左格子 a 和右格子 b 之后，又应该返回哪一个局部变量呢？`,
-    en: `In the previous level, you used sigma_ind to extract the first component of a pair (defining the first projection, fst). Now let's build the companion function that extracts the second component (defining snd)!
+所有参数都通过函数应用积木连接。留意两个不同职责的函数：第二个参数描述包裹中第二项的类型，第四个参数描述整个消去过程的结果类型。它们在本题都可以是常量族，但作用不同。`,
+    en: `Extract the second component of a product A × B. Unlike the previous lesson, B is a type rather than a family A → Type.
 
-Look at the target type: (A × B) → B. You need to construct a function that accepts a pair of type A × B and returns a result of type B.
+The second argument of ind_sigma still expects a family, so construct the constant family λa. B using an ordinary lambda. The second component always has type B regardless of the first value a. Supply A first, this family second, and the pair p received by the outer lambda third.
 
-Why did we switch from a dependent pair Σ (x : A). B x in the last level to a simple product A × B here?
-Because in a dependent pair, the second component's type B a mentions the first component a—so you cannot even state the second component's type without knowing the first component! In an ordinary product A × B (which is just a Σ-type whose second type B ignores the first component), the second component always has the fixed type B.
-
-The overall blueprint is just like the previous level: use an outer λ to receive the pair, and use sigma_ind inside its body to unpack that pair into two local variables a and b. This time, however, check carefully what result type the “motive λ _ ▸” slot should declare, and which unpacked variable the “step λ a λ b ▸” slot should return!`
+Build the remaining motive and branch with ordinary lambdas as well. The motive describes the desired result type for each whole pair; the branch receives a and b and chooses the component to return. Connect everything using application blocks. The second and fourth arguments can both be constant families here, but they play different roles.`
   },
   L15: {
     'zh-CN': `在数学和逻辑里，我们每天都在写等式，比如“2 + 2 = 4”或者“a = a”。但是在类型论中，并没有一个独立于类型系统之外的“等号判断”——相反，马丁-洛夫提出了一个惊艳的想法：把“两个东西相等”这件事本身，也变成一种类型！

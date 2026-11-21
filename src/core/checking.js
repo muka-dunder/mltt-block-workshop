@@ -115,7 +115,7 @@
       }
       case 'sigind': {
         const tp = infer(ctx, tm.p);
-        if (tp.t !== 'Sigma') fail('E_NOT_PAIR', 'sigma_ind needs a Sigma value, but got: ' + showVal(ctx, tp), tm, null, 'sigmaIndNotPair', { type: showVal(ctx, tp) });
+        if (tp.t !== 'Sigma') fail('E_NOT_PAIR', 'ind_sigma needs a Sigma value, but got: ' + showVal(ctx, tp), tm, null, 'sigmaIndNotPair', { type: showVal(ctx, tp) });
         const pV = evalTm(envOf(ctx), tm.p);
         check(ctx, tm.mot, vPi('p', tp, () => vU(0)), []);
         const motV = evalTm(envOf(ctx), tm.mot);

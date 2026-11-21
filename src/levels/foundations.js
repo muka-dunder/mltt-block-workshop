@@ -189,7 +189,7 @@
     },
     {
       id: 'L9', title: 'Unit: elimination', tag: '1-elim',
-      story: 'Eliminate a unit value with a type family C. From c : C ★, the term unitrec u C c has type C u.',
+      story: 'Eliminate a unit value with a type family C. From c : C ★, the term ind_unit u C c has type C u.',
       answerBindersRaw: [
         { name: 'C', ty: pi('_', UNITo, Uo(0)) },
         { name: 'u', ty: UNITo },
@@ -197,38 +197,38 @@
       ],
       goalRaw: app(v('C'), v('u')),
       goalText: 'C u',
-      palette: ['tt_unitrec', 'tt_var'],
-      newBlocks: ['tt_unitrec'],
+      palette: ['tt_eliminator_ind_unit', 'tt_app', 'tt_var'],
+      newBlocks: ['tt_eliminator_ind_unit'],
       par: 4,
       hints: [
         'C : 1 → Type is a type family, u : 1, and c : C ★.',
-        'Use the elimination rule: unitrec u C c.',
+        'Use the elimination rule: ind_unit u C c.',
         'It returns C u—the family applied to the unit value.'
       ],
       solutionRaw: unitrec(v('u'), v('C'), v('c')),
-      solutionText: 'unitrec u C c'
+      solutionText: 'ind_unit u C c'
     },
     {
       id: 'L10', title: 'Unit: computation', tag: '1-computation',
-      story: 'At ★, unitrec computes to its base case: unitrec ★ C c ≡ c.',
+      story: 'At ★, ind_unit computes to its base case: ind_unit ★ C c ≡ c.',
       answerBindersRaw: [
         { name: 'C', ty: pi('_', UNITo, Uo(0)) },
         { name: 'c', ty: app(v('C'), STARo) }
       ],
       goalRaw: app(v('C'), STARo),
       goalText: 'C ★',
-      palette: ['tt_unitrec', 'tt_star', 'tt_var'],
+      palette: ['tt_eliminator_ind_unit', 'tt_app', 'tt_star', 'tt_var'],
       newBlocks: [],
       par: 4,
-      requireBlock: 'tt_unitrec',
-      requireBlockName: 'unitrec',
+      requireEliminator: 'ind_unit',
+      requireBlockName: 'ind_unit',
       hints: [
         'The goal is C ★. c already has this type, but this level asks for the computation rule.',
-        'Build unitrec ★ C c: with u = ★ the eliminator reduces to its base case c.',
-        'Use ★ in the u slot, C as the family, and c as the base case.'
+        'Build ind_unit ★ C c: with u = ★ the eliminator reduces to its base case c.',
+        'Use ordinary application blocks to pass ★, the family C, and the base case c in order.'
       ],
       solutionRaw: unitrec(STARo, v('C'), v('c')),
-      solutionText: 'unitrec ★ C c'
+      solutionText: 'ind_unit ★ C c'
     }
   ];
 });

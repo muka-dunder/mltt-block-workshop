@@ -7,6 +7,19 @@
   if (!global.BlockBinding) throw new Error('Load scope.js before blocks.js');
   const { declareBinder, nameField } = global.BlockBinding;
   const { FieldBinderRef, FieldLocalVar } = global;
+  for (const [type, name] of Object.entries(global.MLTT.eliminatorBlockNames)) {
+    B.Blocks[type] = {
+      init() {
+        this.ttEliminator = name;
+        const input = this.appendDummyInput().appendField(name);
+        if (['ind_sigma', 'J'].includes(name)) input.appendField('A : Type').appendField(new B.FieldNumber(0, 0, Infinity, 1), 'A_LEVEL');
+        if (name === 'ind_sigma') input.appendField('B(a) : Type').appendField(new B.FieldNumber(0, 0, Infinity, 1), 'B_LEVEL');
+        this.setOutput(true, null); this.setColour('#d7ccc8');
+        this.setTooltip(() => global.MLTT.showVal([], global.MLTT.infer([], global.MLTT.eliminatorTerm(name, undefined,
+          [Number(this.getFieldValue('A_LEVEL') || 0), Number(this.getFieldValue('B_LEVEL') || 0)]))));
+      },
+    };
+  }
 
   // ================= Blocks =================
 
@@ -129,6 +142,18 @@
     refreshTypeLayout() { B.Blocks.tt_pi.refreshTypeLayout.call(this); },
   };
 
+  // Keep each label and its value in one row, without external-input cutouts.
+  function inlineRows(block) {
+    const inputs = [...block.inputList];
+    inputs.forEach((input, i) => {
+      if (!input.connection || i === inputs.length - 1) return;
+      const name = 'ROW_END_' + input.name;
+      const lineBreak = block.appendEndRowInput(name);
+      block.moveNumberedInputBefore(block.inputList.indexOf(lineBreak), block.inputList.indexOf(inputs[i + 1]));
+    });
+    block.setInputsInline(true);
+  }
+
   // let
   B.Blocks['tt_let'] = {
     init() {
@@ -140,84 +165,9 @@
       this.appendValueInput('VALUE');
       this.appendDummyInput().appendField('in');
       this.appendValueInput('BODY');
-      this.setInputsInline(false);
+      inlineRows(this);
       this.setOutput(true, null);
       this.setTooltip(() => t('block.letTooltip'));
-    }
-  };
-
-  // natrec
-  B.Blocks['tt_natrec'] = {
-    init() {
-      declareBinder(this, { MOT_BODY: 'm', STEP_BODY: ['k', 'ih'] });
-      this.appendDummyInput().appendField('natrec').appendField('n =');
-      this.appendValueInput('N');
-      this.appendDummyInput()
-        .appendField(t('block.motiveLambda'))
-        .appendField(nameField('_'), 'MNAME')
-        .appendField('▸');
-      this.appendValueInput('MOT_BODY');
-      this.appendDummyInput().appendField(t('block.base'));
-      this.appendValueInput('Z');
-      this.appendDummyInput()
-        .appendField(t('block.stepLambda'))
-        .appendField(nameField('k'), 'KNAME')
-        .appendField('λ')
-        .appendField(nameField('ih'), 'IHNAME')
-        .appendField('▸');
-      this.appendValueInput('STEP_BODY');
-      this.setInputsInline(false);
-      this.setOutput(true, null);
-      this.setTooltip(() => t('block.natrecTooltip'));
-    }
-  };
-
-  // J
-  B.Blocks['tt_J'] = {
-    init() {
-      declareBinder(this, { MOT_BODY: ['y', 'q'] });
-      this.appendDummyInput().appendField(t('block.jBase')).appendField('a =');
-      this.appendValueInput('BASE');
-      this.appendDummyInput()
-        .appendField(t('block.motiveLambda'))
-        .appendField(nameField('y'), 'YNAME')
-        .appendField('λ')
-        .appendField(nameField('q'), 'QNAME')
-        .appendField('▸');
-      this.appendValueInput('MOT_BODY');
-      this.appendDummyInput().appendField(t('block.baseD'));
-      this.appendValueInput('D');
-      this.appendDummyInput().appendField(t('block.atB'));
-      this.appendValueInput('B');
-      this.appendDummyInput().appendField(t('block.alongP'));
-      this.appendValueInput('P');
-      this.setInputsInline(false);
-      this.setOutput(true, null);
-      this.setTooltip(() => t('block.jTooltip'));
-    }
-  };
-
-  // Sigma elimination
-  B.Blocks['tt_sigma_ind'] = {
-    init() {
-      declareBinder(this, { MOT_BODY: 'p', STEP_BODY: ['a', 'b'] });
-      this.appendDummyInput().appendField('sigma_ind').appendField('p =');
-      this.appendValueInput('P');
-      this.appendDummyInput()
-        .appendField(t('block.motiveLambda'))
-        .appendField(nameField('_'), 'PNAME')
-        .appendField('▸');
-      this.appendValueInput('MOT_BODY');
-      this.appendDummyInput()
-        .appendField(t('block.stepLambda'))
-        .appendField(nameField('a'), 'ANAME')
-        .appendField('λ')
-        .appendField(nameField('b'), 'BNAME')
-        .appendField('▸');
-      this.appendValueInput('STEP_BODY');
-      this.setInputsInline(false);
-      this.setOutput(true, null);
-      this.setTooltip(() => t('block.sigmaIndTooltip'));
     }
   };
 
@@ -317,16 +267,7 @@
       args0: [{ type: 'input_value', name: 'E' }],
       inputsInline: true, output: null, colour: '#d7ccc8'
     },
-    {
-      type: 'tt_unitrec', message0: 'unitrec u = %1 C = %2 c = %3',
-      args0: [
-        { type: 'input_value', name: 'U' },
-        { type: 'input_value', name: 'MOT' },
-        { type: 'input_value', name: 'BASE' }
-      ],
-      inputsInline: true, output: null, colour: '#d7ccc8',
-      tooltipKey: 'unitrecTooltip'
-    },
+
     {
       type: 'tt_if', message0: 'if %1 then %2 else %3', messageKey: 'ifMessage',
       args0: [

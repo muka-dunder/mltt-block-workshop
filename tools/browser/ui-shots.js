@@ -19,27 +19,12 @@ async function buildL0(page) {
 async function buildL4(page) {
   return page.evaluate(() => {
     const ws = Blockly.common.getMainWorkspace();
-    const given = (i) => { const b = ws.newBlock('tt_given'); b.setFieldValue(String(i), 'IDX'); b.initSvg(); b.render(); return b; };
-    const plug = (p, input, c) => p.getInput(input).connection.connect(c.outputConnection);
-
-    const j = ws.newBlock('tt_J'); j.initSvg(); j.render(); j.moveBy(70, 90);
-    plug(j, 'BASE', given(1)); // x
-
-    const id = ws.newBlock('tt_id'); id.initSvg(); id.render();
-    plug(j, 'MOT_BODY', id);
-    plug(id, 'TY', given(0)); // A
-    const w = ws.newBlock('tt_var'); w.initSvg(); w.render();
-    w.setFieldValue(j.ttBinds.MOT_BODY[0] + '\u241Fw', 'REF');
-    plug(id, 'L', w);
-    plug(id, 'R', given(1)); // x
-
-    const refl = ws.newBlock('tt_refl');
-    refl.initSvg(); refl.render();
-    plug(j, 'D', refl);
-    plug(j, 'B', given(2)); // y
-    plug(j, 'P', given(3)); // p
-    // New blocks need initSvg/render
-    for (const b of ws.getAllBlocks(false)) { if (!b.rendered) { b.initSvg(); b.render(); } }
+    let term = ws.newBlock('tt_eliminator_J'); term.initSvg(); term.render();
+    for (let i = 0; i < 6; i++) {
+      const application = ws.newBlock('tt_app'); application.initSvg(); application.render();
+      application.getInput('F').connection.connect(term.outputConnection); term = application;
+    }
+    term.moveBy(70, 90);
     return { blocks: ws.getAllBlocks(false).length };
   });
 }

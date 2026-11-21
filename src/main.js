@@ -19,6 +19,8 @@ async function start() {
   await import('./core/runtime.js');
   await import('./core/printing.js');
   await import('./core/checking.js');
+  await import('./core/eliminators.js');
+  await import('./core/eliminator-terms.js');
   await import('./core/entry-checking.js');
   await import('./core/block-checking.js');
   await import('./core/mltt.js');

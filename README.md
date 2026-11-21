@@ -160,8 +160,9 @@ excluded. Split files by responsibility when they reach this limit.
   preset levels prefill and lock parts of the content, custom content is editable.
 - Types: `Pi` `Sigma` `Id` `Nat` `Bool` `0` (empty) `1` (unit) `Type 0/1`
 - Terms: `lambda` `variable` `application` `pair` `0/suc` `true/false/star` `refl` `let` `annotation` `hole` `given`
-- Eliminators: `natrec` `unitrec` `sigma_ind` `J` `if` `absurd`
-- The product/Sigma levels derive `fst`/`snd` with `sigma_ind`; primitive `fst`/`snd` blocks are not offered in the toolbox.
+- Eliminator functions: `ind_nat` `ind_unit` `ind_sigma` `J`, combined with ordinary applications and lambdas; partial application is supported. `if` and `absurd` retain their expression blocks.
+- `ind_sigma A B p motive step` and `J A a motive base b proof` take explicit type arguments. The function symbol's `A : Type` and `B(a) : Type` fields select their universe levels independently.
+- The product/Sigma levels derive `fst`/`snd` with `ind_sigma`; primitive `fst`/`snd` blocks are not offered in the toolbox.
 - Lemma: `add` (transparent definition, delta-reduction)
 
 ## Checking container
@@ -180,8 +181,8 @@ puzzle sockets and report incomplete work; display text is never proof evidence.
 Preset levels fill and lock parts of this same content. A term-construction task
 locks the judgment's type and leaves its term empty. A type-inference task locks
 the expression and leaves its type empty. Inference examples leave the rule and
-conclusion term for the player to construct. Judgments and rules accept a `CONTEXT`: an ordered `tt_context` of `tt_binding` cards, each with an editable name and type slot. Later declarations and the body can use earlier names. Local references retain stable lexical IDs through locale changes and sharing.
-Preset goals and required constructors are represented by frozen cards, including the `unitrec` skeleton in L10. The checker reads the cards themselves in both modes; preset containers have no hidden variables or conditions.
+conclusion term for the player to construct. Judgments and rules contain ordered `CONTEXT0`, `CONTEXT1`, ... slots for `tt_binding` declarations. Right-click to add or remove declarations; later declarations and the body can use earlier names. Local references retain stable lexical IDs through locale changes and sharing.
+Preset goals and required constructions are represented by frozen cards, including the ordinary applications headed by `ind_unit` in L10. The checker reads the cards themselves in both modes; preset containers have no hidden variables or conditions. Dedicated eliminator cards and conversion menus are removed; the underlying primitive computation rules remain in the checker.
 
 Custom problems allow any supported content. Right-click a block to freeze or
 unfreeze it when authoring a puzzle; freezing survives saving and sharing.
@@ -257,12 +258,12 @@ Run `node test/contexts.js`, `node tools/browser/context-freeze-test.js`, `node 
 | 6 | `f : A->B, x : A |- f x : ?` | type inference (answer is a type) |
 | 7 | `f : (x:A) -> B x, a : A |- f a : ?` | Pi application inference |
 | 8 | `|- star : 1` | unit introduction |
-| 9 | `C : 1->Type, u : 1, c : C star |- C u` | unit elimination (`unitrec`) |
-| 10 | `C : 1->Type, c : C star |- C star` | unit computation (`unitrec star C c = c`) |
+| 9 | `C : 1->Type, u : 1, c : C star |- C u` | unit elimination (`ind_unit`) |
+| 10 | `C : 1->Type, c : C star |- C star` | unit computation (`ind_unit star C c = c`) |
 | 11 | `A : Type, e : 0 |- A` | empty elimination (`absurd`) |
 | 12 | `a : A, b : B |- A x B` | product introduction (`pair`) |
-| 13 | `|- (Sigma x : A. B x) -> A` | Sigma elimination (`sigma_ind`, fst) |
-| 14 | `|- (A x B) -> B` | Sigma elimination (`sigma_ind`, snd) |
+| 13 | `|- (Sigma x : A. B x) -> A` | Sigma elimination (`ind_sigma`, fst) |
+| 14 | `|- (A x B) -> B` | Sigma elimination (`ind_sigma`, snd) |
 | 15 | `|- refl : Id A a a` | identity introduction (`refl`) |
 | 16 | `|- Type 0 : Type 1` | universe (`Type`) |
 | 17 | `Pi A:Type. A -> A` (polymorphic identity) | Pi type (dependent codomain) |

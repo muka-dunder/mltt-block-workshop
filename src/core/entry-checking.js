@@ -4,7 +4,7 @@
   global.MLTTCreateEntryChecking = factory;
 })(typeof globalThis !== 'undefined' ? globalThis : this, function (runtime, printing, checking, elabBlock) {
   'use strict';
-  const { Lam, evalTm, envOf, vNe, fail, CheckError, conv } = runtime;
+  const { evalTm, envOf, vNe, fail, CheckError, conv } = runtime;
   const { infer, check, sortOf } = checking;
 
   function entries(context) {
@@ -65,6 +65,7 @@
       const opened = openContext(j, ctx, scope, opts, false);
       return validateEntry(stripContext(j), opened.ctx, opened.scope, opened.opts, expected);
     }
+    if (opts.inspection?.id === j.id) opts.inspection.location = { json: j, ctx, scope, opts, expected };
     const inputs = j.inputs || {}, term = () => elabBlock(j, scope, opts);
     const value = block => evalTm(envOf(ctx), elabBlock(block, scope, opts));
     const visit = (name, ty) => validateEntry(inputs[name], ctx, scope, opts, ty);
@@ -134,37 +135,6 @@
       if (inputs.TY) visit('TY'); visit('VALUE', inputs.TY && value(inputs.TY));
       scoped('BODY', [inputs.TY ? value(inputs.TY) : infer(ctx, elabBlock(inputs.VALUE, scope, opts))], expected); return;
     }
-    if (j.type === 'tt_natrec') {
-      visit('N'); scoped('MOT_BODY', [runtime.vNat], runtime.vU(0));
-      const k = vNe({ h: 'var', lvl: ctx.length }, []);
-      const uid = j.binds?.MOT_BODY?.[0];
-      const mot = Lam(j.names?.[uid] || 'n', elabBlock(inputs.MOT_BODY, scope.concat([{ uid, name: j.names?.[uid] || 'n' }]), opts));
-      const motive = evalTm(envOf(ctx), mot);
-      visit('Z', runtime.applyV(motive, runtime.vZero));
-      scoped('STEP_BODY', [runtime.vNat, runtime.applyV(motive, k)], runtime.applyV(motive, runtime.vSuc(k))); return;
-    }
-    if (j.type === 'tt_sigma_ind') {
-      visit('P'); const pair = infer(ctx, elabBlock(inputs.P, scope, opts));
-      scoped('MOT_BODY', [pair], runtime.vU(0));
-      const a = vNe({ h: 'var', lvl: ctx.length }, []), b = vNe({ h: 'var', lvl: ctx.length + 1 }, []);
-      const uid = j.binds?.MOT_BODY?.[0];
-      const motive = evalTm(envOf(ctx), Lam(j.names?.[uid] || 'p', elabBlock(inputs.MOT_BODY, scope.concat([{ uid, name: j.names?.[uid] || 'p' }]), opts)));
-      scoped('STEP_BODY', [pair.dom, pair.cod(a)], runtime.applyV(motive, runtime.vPair(a, b))); return;
-    }
-    if (j.type === 'tt_J') {
-      visit('BASE'); const a = value(inputs.BASE), ty = infer(ctx, elabBlock(inputs.BASE, scope, opts));
-      const y = vNe({ h: 'var', lvl: ctx.length }, []);
-      scoped('MOT_BODY', [ty, runtime.vId(ty, a, y)], runtime.vU(0));
-      const [yu, qu] = j.binds?.MOT_BODY || [];
-      const body = elabBlock(inputs.MOT_BODY, scope.concat([{ uid: yu, name: j.names?.[yu] || 'y' }, { uid: qu, name: j.names?.[qu] || 'q' }]), opts);
-      const motive = evalTm(envOf(ctx), Lam('y', Lam('q', body)));
-      visit('D', runtime.applyV(runtime.applyV(motive, a), runtime.vRefl));
-      visit('B', ty); visit('P', runtime.vId(ty, a, value(inputs.B))); return;
-    }
-    if (j.type === 'tt_unitrec') {
-      visit('U', runtime.vUnit); visit('MOT', runtime.vPi('_', runtime.vUnit, () => runtime.vU(0)));
-      visit('BASE', runtime.applyV(value(inputs.MOT), runtime.vStar)); return;
-    }
     if (j.type === 'tt_id') { visit('TY'); visit('L', value(inputs.TY)); visit('R', value(inputs.TY)); return; }
     for (const name of Object.keys(inputs)) visit(name);
   }
@@ -172,6 +142,8 @@
 
   function checkExplicitEntry(problem, initialOpts = {}, inspection) {
     let ctx = [], scope = [], opts = { ...initialOpts, nGivens: 0, strictScope: true, contextual: true };
+    const selection = inspection && { id: inspection.id };
+    if (selection) opts.inspection = selection;
     const root = problem?.type === 'tt_problem' ? problem.inputs?.TERM : problem;
     let entry = root, term, result;
     try {
@@ -192,10 +164,16 @@
         let selected = inspection.json;
         const find = j => { if (!j) return; if (j.id === inspection.id) selected = j; for (const child of Object.values(j.inputs || {})) find(child); };
         find(root);
-        if (selected?.type === 'tt_binding') result.selectedType = printing.show(ctx, elabBlock(selected.inputs?.TYPE, scope, opts));
+        const location = selection.location;
+        const selectedCtx = location?.ctx || ctx, selectedScope = location?.scope || scope, selectedOpts = location?.opts || opts;
+        if (selected?.type === 'tt_binding') result.selectedType = printing.show(selectedCtx, elabBlock(selected.inputs?.TYPE, selectedScope, selectedOpts));
         else {
-          const selectedTerm = selected?.id === problem?.id || selected?.id === root?.id ? term : elabBlock(selected, scope, opts);
-          if (selectedTerm) result.selectedType = printing.showVal(ctx, infer(ctx, selectedTerm));
+          const selectedTerm = selected?.id === problem?.id || selected?.id === root?.id ? term : elabBlock(selected, selectedScope, selectedOpts);
+          if (selectedTerm) {
+            const type = location?.expected || infer(selectedCtx, selectedTerm);
+            result.selectedType = printing.showVal(selectedCtx, type);
+            result.selectedTypeValue = type; result.selectedScope = selectedScope; result.selectedCtx = selectedCtx;
+          }
         }
       } catch (error) { result.selectedError = error; }
     }

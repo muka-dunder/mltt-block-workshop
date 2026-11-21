@@ -59,13 +59,13 @@
     },
     L9: {
       title: '单元类型：消去', tag: '1-消去',
-      story: '使用类型族 C 消去一个单元类型的值。由 c : C ★ 可得项 unitrec u C c 的类型为 C u。',
-      hints: ['C : 1 → Type 是一个类型族，u : 1，且 c : C ★。', '使用消去规则：unitrec u C c。', '它返回 C u，即把类型族应用于这个单元值。']
+      story: '使用类型族 C 消去一个单元类型的值。由 c : C ★ 可得项 ind_unit u C c 的类型为 C u。',
+      hints: ['C : 1 → Type 是一个类型族，u : 1，且 c : C ★。', '使用消去规则：ind_unit u C c。', '它返回 C u，即把类型族应用于这个单元值。']
     },
     L10: {
       title: '单元类型：计算', tag: '1-计算',
-      story: '当输入为 ★ 时，unitrec 计算为基本情况：unitrec ★ C c ≡ c。',
-      hints: ['目标是 C ★。c 已经具有这个类型，但本关要求使用计算规则。', '构造 unitrec ★ C c：当 u = ★ 时，消去子会化简为基本情况 c。', '在 u 槽中放入 ★，用 C 作为类型族，用 c 作为基本情况。']
+      story: '当输入为 ★ 时，ind_unit 计算为基本情况：ind_unit ★ C c ≡ c。',
+      hints: ['目标是 C ★。c 已经具有这个类型，但本关要求使用计算规则。', '构造 ind_unit ★ C c：当 u = ★ 时，消去子会化简为基本情况 c。', '用普通应用积木依次给 ind_unit 传入 ★、类型族 C 和基本情况 c。']
     },
     L11: {
       title: '空类型：消去', tag: '0-消去',
@@ -79,13 +79,13 @@
     },
     L13: {
       title: 'Sigma：用归纳定义 fst', tag: 'Sigma 消去',
-      story: '使用 sigma_ind 为依赖对定义 fst。',
-      hints: ['用 λ 引入 p。目标变为 A。', '用 sigma_ind 消去 p；动机恒为 A。', '在归纳步骤中绑定 a : A 和 b : B a，然后返回 a。']
+      story: '使用 ind_sigma 为依赖对定义 fst。',
+      hints: ['用 λ 引入 p。目标变为 A。', '用 ind_sigma 消去 p；动机恒为 A。', '在归纳步骤中绑定 a : A 和 b : B a，然后返回 a。']
     },
     L14: {
       title: 'Sigma：用归纳定义 snd', tag: 'Sigma 消去',
-      story: '对积形式的 Sigma 类型使用 sigma_ind 定义 snd。',
-      hints: ['用 λ 引入 p。目标变为 B。', '用 sigma_ind 消去 p；动机恒为 B。', '在归纳步骤中绑定 a : A 和 b : B，然后返回 b。']
+      story: '对积形式的 Sigma 类型使用 ind_sigma 定义 snd。',
+      hints: ['用 λ 引入 p。目标变为 B。', '用 ind_sigma 消去 p；动机恒为 B。', '在归纳步骤中绑定 a : A 和 b : B，然后返回 b。']
     },
     L15: {
       title: '同一类型：引入', tag: 'Id',

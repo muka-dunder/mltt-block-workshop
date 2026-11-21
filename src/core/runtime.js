@@ -248,6 +248,8 @@
       case 'fst': case 'snd': case 'absurd': return true;
       case 'if': return conv(x.x, y.x) && conv(x.y, y.y);
       case 'natrec': return conv(x.mot, y.mot) && conv(x.z, y.z) && conv(x.s, y.s);
+      case 'unitrec': return conv(x.mot, y.mot) && conv(x.base, y.base);
+      case 'sigind': return conv(x.mot, y.mot) && conv(x.step, y.step);
       case 'J': return conv(x.a, y.a) && conv(x.mot, y.mot) && conv(x.d, y.d) && conv(x.b, y.b);
       default: return false;
     }

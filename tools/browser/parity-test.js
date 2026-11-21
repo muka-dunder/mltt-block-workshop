@@ -45,11 +45,17 @@ const { chromium } = require('playwright');
           const input = level.inferTerm ? 'TYPE' : 'TERM', built = createTerm(w, level.solution, scope);
           const existing = entry.getInputTargetBlock(input);
           if (existing && BlockFreeze.isFrozen(existing) && existing.type === built.type) {
-            for (const row of built.inputList) {
-              const child = row.connection?.targetBlock();
-              if (child) { child.unplug(); connect(existing, row.name, child); }
+            function fill(target, source) {
+              for (const row of source.inputList) {
+                const child = row.connection?.targetBlock();
+                if (!child) continue;
+                const fixed = target.getInputTargetBlock(row.name);
+                if (fixed && BlockFreeze.isFrozen(fixed)) fill(fixed, child);
+                else { child.unplug(); connect(target, row.name, child); }
+              }
+              source.dispose(false);
             }
-            built.dispose(false);
+            fill(existing, built);
           } else connect(entry, input, built);
         }
         const used = [...new Set(root.getDescendants(false).map(block => block.type))];

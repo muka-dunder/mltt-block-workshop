@@ -84,13 +84,13 @@
       case 'id': return 'Id ' + show(ctx, tm.ty, 3) + ' ' + show(ctx, tm.l, 2) + ' ' + show(ctx, tm.r, 2);
       case 'natrec': {
         const nm = tm.mot.name || 'm';
-        return 'natrec ' + show(ctx, tm.n, 2) + ' [' + nm + '. ' + show(ctx.concat([{ name: nm }]), tm.mot.body) + '] ' +
+        return 'ind_nat ' + show(ctx, tm.n, 2) + ' [' + nm + '. ' + show(ctx.concat([{ name: nm }]), tm.mot.body) + '] ' +
           show(ctx, tm.z, 2) + ' [' + show(ctx, tm.s) + ']';
       }
       case 'if': return 'if ' + show(ctx, tm.b) + ' then ' + show(ctx, tm.x) + ' else ' + show(ctx, tm.y);
       case 'absurd': return 'absurd ' + show(ctx, tm.e, 2);
-      case 'unitrec': return 'unitrec ' + show(ctx, tm.u, 2) + ' ' + show(ctx, tm.mot, 2) + ' ' + show(ctx, tm.base, 2);
-      case 'sigind': return 'sigma_ind ' + show(ctx, tm.p, 2) + ' ' + show(ctx, tm.mot, 2) + ' ' + show(ctx, tm.step, 2);
+      case 'unitrec': return 'ind_unit ' + show(ctx, tm.u, 2) + ' ' + show(ctx, tm.mot, 2) + ' ' + show(ctx, tm.base, 2);
+      case 'sigind': return 'ind_sigma ' + show(ctx, tm.p, 2) + ' ' + show(ctx, tm.mot, 2) + ' ' + show(ctx, tm.step, 2);
       case 'J': return 'J(' + show(ctx, tm.a) + '; ' + show(ctx, tm.mot) + '; ' + show(ctx, tm.d) + '; ' +
         show(ctx, tm.b) + '; ' + show(ctx, tm.p) + ')';
       case 'annot': return '(' + show(ctx, tm.term) + ' : ' + show(ctx, tm.ty) + ')';

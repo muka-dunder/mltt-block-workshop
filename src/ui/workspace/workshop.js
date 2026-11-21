@@ -31,7 +31,7 @@ export function createWorkshop({ getWorkspace, getLevel, ensureAnswer, goalText,
     { name: 'Rules', colour: '#5894aa', types: ['tt_binding', 'tt_rule_app', 'tt_judgment', 'tt_rule_pi_elim', 'tt_rule_theorem'] },
     { name: 'Types', colour: '#5b8def', types: ['tt_pi', 'tt_sigma', 'tt_id', 'tt_nat', 'tt_bool', 'tt_empty', 'tt_unit', 'tt_U'] },
     { name: 'Terms', colour: '#4f9d76', types: ['tt_lam', 'tt_var', 'tt_app', 'tt_pair', 'tt_zero', 'tt_suc', 'tt_true', 'tt_false', 'tt_star', 'tt_refl', 'tt_let', 'tt_annot', 'tt_hole'] },
-    { name: 'Eliminators', colour: '#c47a3d', types: ['tt_natrec', 'tt_unitrec', 'tt_sigma_ind', 'tt_J', 'tt_if', 'tt_absurd'] },
+    { name: 'Eliminators', colour: '#c47a3d', types: [...Object.keys(MLTT.eliminatorBlockNames), 'tt_if', 'tt_absurd'] },
     { name: 'Lemmas', colour: '#7b6ee0', types: ['tt_lemma'] },
   ];
 
@@ -45,7 +45,7 @@ export function createWorkshop({ getWorkspace, getLevel, ensureAnswer, goalText,
   function localBinderSymbols() {
     if (!getWorkspace()) return [];
     const symbols = [];
-    const labels = { tt_binding: window.I18N.locale === 'zh-CN' ? '条件' : 'Context', tt_lam: 'λ', tt_pi: 'Π', tt_sigma: 'Σ', tt_natrec: 'natrec', tt_sigma_ind: 'Σ-ind', tt_J: 'J', tt_let: 'let' };
+    const labels = { tt_binding: window.I18N.locale === 'zh-CN' ? '条件' : 'Context', tt_lam: 'λ', tt_pi: 'Π', tt_sigma: 'Σ', tt_let: 'let' };
     for (const block of getWorkspace().getAllBlocks(false)) {
       if (['tt_answer', 'tt_problem'].includes(block.type) || block.ttContextDisplay) continue;
       for (const uid of new Set(Object.values(block.ttBinds || {}).flat())) {
@@ -119,7 +119,9 @@ export function createWorkshop({ getWorkspace, getLevel, ensureAnswer, goalText,
     if (MLTT.inspectWorkshop) {
       const ans = ensureAnswer();
       const level = getLevel().custom ? { givens: [], goal: MLTT.UNIT } : getLevel();
-      const root = ans && !getLevel().custom ? toJson(ans) : { type: 'tt_answer', inputs: { TERM: { type: 'tt_hole', id: 'inspect-empty' } } };
+      const owner = selected.getRootBlock();
+      const root = getLevel().custom && owner.type === 'tt_problem' ? toJson(owner) : ans && !getLevel().custom ? toJson(ans)
+        : { type: 'tt_answer', inputs: { TERM: { type: 'tt_hole', id: 'inspect-empty' } } };
       const r = MLTT.inspectWorkshop(level, root, declarationJson(), selected.id, toJson(selected));
       if (r.selectedType) { el.textContent = r.selectedType; return; }
       if (r.selectedError) { el.textContent = window.I18N.error(r.selectedError); return; }

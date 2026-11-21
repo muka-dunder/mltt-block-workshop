@@ -151,7 +151,7 @@ t('L7 inference: drag B a into type hole', () => {
   const r = M.checkBlocks(levels[7], blk);
   if (!r.ok) throw new Error(r.error.message);
 });
-t('L10 computation: answer without unitrec rejected', () => {
+t('L10 computation: answer without ind_unit rejected', () => {
   const uids = ['uC', 'uc'];
   const blk = {
     type: 'tt_answer', id: 'a1',
@@ -162,49 +162,20 @@ t('L10 computation: answer without unitrec rejected', () => {
   const r = M.checkBlocks(levels[10], blk);
   assert(!r.ok && r.error.code === 'E_REQUIRE', r.error && r.error.code);
 });
-t('L10 computation: unitrec star C c passes', () => {
-  const uids = ['uC', 'uc'];
-  const blk = {
-    type: 'tt_answer', id: 'a1',
-    binds: { TERM: uids },
-    names: { uC: 'C', uc: 'c' },
-    inputs: {
-      TERM: {
-        type: 'tt_unitrec', id: 'ur1', inputs: {
-          U: { type: 'tt_star', id: 's1', inputs: {} },
-          MOT: varB(uids[0] + '\u241FC', 'C', 'v2'),
-          BASE: varB(uids[1] + '\u241Fc', 'c', 'v3')
-        }
-      }
-    }
-  };
+const functionBlock = (name, ...args) => args.reduce((f, arg) => ({ type: 'tt_app', inputs: { F: f, A: arg } }),
+  { type: 'tt_eliminator_' + name, inputs: {} });
+t('L10 computation: ind_unit applied to star C c passes', () => {
+  const blk = { type: 'tt_answer', id: 'a1', binds: { TERM: ['uC', 'uc'] }, names: { uC: 'C', uc: 'c' },
+    inputs: { TERM: functionBlock('ind_unit', { type: 'tt_star', inputs: {} }, varB('uC␟C', 'C', 'v2'), varB('uc␟c', 'c', 'v3')) } };
   const r = M.checkBlocks(levels[10], blk);
   if (!r.ok) throw new Error(r.error.message);
 });
-t('L13 Sigma fst: sigma_ind block elaborates', () => {
-  const uids = ['uA', 'uB'];
-  const blk = {
-    type: 'tt_answer', id: 'a1',
-    binds: { TERM: uids },
-    names: { uA: 'A', uB: 'B' },
-    inputs: {
-      TERM: {
-        type: 'tt_lam', id: 'l1', binds: { BODY: ['uP'] }, names: { uP: 'p' },
-        inputs: {
-          BODY: {
-            type: 'tt_sigma_ind', id: 'si1',
-            binds: { MOT_BODY: ['uM'], STEP_BODY: ['uSa', 'uSb'] },
-            names: { uM: 'p', uSa: 'a', uSb: 'b' },
-            inputs: {
-              P: varB('uP\u241Fp', 'p', 'v1'),
-              MOT_BODY: varB('uA\u241FA', 'A', 'v2'),
-              STEP_BODY: varB('uSa\u241Fa', 'a', 'v3')
-            }
-          }
-        }
-      }
-    }
-  };
+t('L13 Sigma fst: ordinary applications and lambdas elaborate', () => {
+  const variable = (uid, name) => varB(uid + '␟' + name, name, uid);
+  const lambda = (uid, name, body) => ({ type: 'tt_lam', binds: { BODY: [uid] }, names: { [uid]: name }, inputs: { BODY: body } });
+  const blk = { type: 'tt_answer', id: 'a1', binds: { TERM: ['uA', 'uB'] }, names: { uA: 'A', uB: 'B' },
+    inputs: { TERM: lambda('uP', 'p', functionBlock('ind_sigma', variable('uA', 'A'), variable('uB', 'B'), variable('uP', 'p'),
+      lambda('uM', '_', variable('uA', 'A')), lambda('ua', 'a', lambda('ub', 'b', variable('ua', 'a'))))) } };
   const r = M.checkBlocks(levels[13], blk);
   if (!r.ok) throw new Error(r.error.message);
 });
@@ -215,16 +186,16 @@ t('beta: (lambda x. x) 3 = 3', () => {
   const a = M.evalTm([], app), b = M.evalTm([], M.SUC(M.ZERO));
   assert(M.conv(a, b));
 });
-t('iota: natrec 0 = z', () => {
+t('iota: ind_nat 0 = z', () => {
   const app = M.NatRec(M.ZERO, M.Lam('_', M.NAT), M.ZERO, M.Lam('k', M.Lam('i', M.SUC(M.Var(0)))));
   assert(M.conv(M.evalTm([], app), M.evalTm([], M.ZERO)));
 });
-t('iota: unitrec star = c', () => {
+t('iota: ind_unit star = c', () => {
   const c = M.SUC(M.ZERO);
   const rec = M.UnitRec(M.STAR, M.Lam('_', M.NAT), c);
   assert(M.conv(M.evalTm([], rec), M.evalTm([], c)));
 });
-t('iota: sigma_ind <a,b> = step a b', () => {
+t('iota: ind_sigma <a,b> = step a b', () => {
   const a = M.ZERO, b = M.SUC(M.ZERO);
   const rec = M.SigmaInd(M.Pair(a, b), M.Lam('p', M.NAT), M.Lam('a', M.Lam('b', M.Var(1))));
   assert(M.conv(M.evalTm([], rec), M.evalTm([], a)));
@@ -279,7 +250,7 @@ t('print L1 goal', () => {
 t('print L21 reference solution', () => {
   const ctx = M.buildCtx(levels[21].givens);
   const s = M.show(ctx, levels[21].solution);
-  assert(s.startsWith('J('), s);
+  assert(s.startsWith('J A '), s);
   console.log('    ' + s);
 });
 

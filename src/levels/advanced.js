@@ -50,43 +50,43 @@
     },
     {
       id: 'L13', title: 'Sigma: fst via ind', tag: 'Sigma elimination',
-      story: 'Define fst for a dependent pair using sigma_ind, not a primitive fst.',
+      story: 'Define fst for a dependent pair using ind_sigma, not a primitive fst.',
       answerBindersRaw: [
         { name: 'A', ty: Uo(0) },
         { name: 'B', ty: pi('_', v('A'), Uo(0)) }
       ],
       goalRaw: pi('p', sigma('x', v('A'), app(v('B'), v('x'))), v('A')),
       goalText: '(Sigma x : A. B x) -> A',
-      palette: ['tt_lam', 'tt_var', 'tt_sigma_ind'],
-      newBlocks: ['tt_sigma_ind'],
+      palette: ['tt_lam', 'tt_var', 'tt_eliminator_ind_sigma', 'tt_app'],
+      newBlocks: ['tt_eliminator_ind_sigma'],
       par: 5,
       hints: [
         'Open a λ for p. The goal becomes A.',
-        'Eliminate p with sigma_ind; the motive is constantly A.',
+        'Eliminate p with ind_sigma; the motive is constantly A.',
         'In the step case, bind a : A and b : B a, then return a.'
       ],
       solutionRaw: lam('p', sigind(v('p'), '_', v('A'), 'a', 'b', v('a'))),
-      solutionText: 'λp. sigma_ind p (λ_. A) (λa b. a)'
+      solutionText: 'λp. ind_sigma A B p (λ_. A) (λa b. a)'
     },
     {
       id: 'L14', title: 'Sigma: snd via ind', tag: 'Sigma elimination',
-      story: 'Define snd using sigma_ind on a product Sigma type.',
+      story: 'Define snd using ind_sigma on a product Sigma type.',
       answerBindersRaw: [
         { name: 'A', ty: Uo(0) },
         { name: 'B', ty: Uo(0) }
       ],
       goalRaw: pi('p', sigma('_', v('A'), v('B')), v('B')),
       goalText: '(A x B) -> B',
-      palette: ['tt_lam', 'tt_var', 'tt_sigma_ind'],
+      palette: ['tt_lam', 'tt_var', 'tt_eliminator_ind_sigma', 'tt_app'],
       newBlocks: [],
       par: 5,
       hints: [
         'Open a λ for p. The goal becomes B.',
-        'Eliminate p with sigma_ind; the motive is constantly B.',
+        'Eliminate p with ind_sigma; the motive is constantly B.',
         'In the step case, bind a : A and b : B, then return b.'
       ],
       solutionRaw: lam('p', sigind(v('p'), '_', v('B'), 'a', 'b', v('b'))),
-      solutionText: 'λp. sigma_ind p (λ_. B) (λa b. b)'
+      solutionText: 'λp. ind_sigma A (λ_. B) p (λ_. B) (λa b. b)'
     },
     {
       id: 'L15', title: 'Identity: introduction', tag: 'Id',
@@ -170,8 +170,8 @@
       ],
       goalRaw: app(v('B'), v('y')),
       goalText: 'B y',
-      palette: ['tt_J', 'tt_var', 'tt_lam'],
-      newBlocks: ['tt_J'],
+      palette: ['tt_eliminator_J', 'tt_app', 'tt_var', 'tt_lam'],
+      newBlocks: ['tt_eliminator_J'],
       par: 5,
       hints: [
         'Eliminate on p with base point x.',
@@ -211,7 +211,7 @@
       ],
       goalRaw: id(v('A'), v('x'), v('z')),
       goalText: 'Id A x z',
-      palette: ['tt_J', 'tt_refl', 'tt_var', 'tt_lam'],
+      palette: ['tt_eliminator_J', 'tt_app', 'tt_refl', 'tt_var', 'tt_lam'],
       newBlocks: [],
       par: 5,
       hints: [

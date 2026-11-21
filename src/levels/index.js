@@ -143,13 +143,17 @@
       env.push(b.name);
       return entry;
     });
+    const ctx = M.buildCtx(givens.concat(answerBinders));
+    const goal = close(lv.goalRaw, env), source = close(lv.solutionRaw, env);
+    const solution = M.functionForm(ctx, source, M.evalTm(M.envOf(ctx), goal));
     return Object.assign({}, lv, {
       givens,
       answerBinders,
       answerBinder: answerBinders[0] || null,
-      inferTerm: lv.inferTermRaw ? close(lv.inferTermRaw, env) : null,
-      goal: close(lv.goalRaw, env),
-      solution: close(lv.solutionRaw, env),
+      inferTerm: lv.inferTermRaw ? M.functionForm(ctx, close(lv.inferTermRaw, env)) : null,
+      goal: M.functionForm(ctx, goal),
+      solution,
+      solutionText: solution === source ? lv.solutionText : M.show(ctx, solution),
       par: countOpen(lv.solutionRaw) + (lv.parExtra || 0)
     });
   });

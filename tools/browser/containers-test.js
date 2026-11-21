@@ -63,12 +63,7 @@ const path = require('node:path');
     await page.selectOption('#languageSelect', 'zh-CN');
     assert.equal(await page.evaluate(() => __mltt.workspace.getBlocksByType('tt_problem')[0].getInputTargetBlock('TERM').id), original.entry);
     await page.evaluate(() => {
-      const payload = __mltt.exportSession(), root = payload.workspace.blocks.blocks.find(b => b.type === 'tt_problem');
-      const judgment = root.inputs.TERM.block;
-      root.type = 'tt_answer'; root.inputs.TYPE = judgment.inputs.TYPE; root.inputs.TERM = judgment.inputs.TERM;
-      root.extraState = { preset: 'L0', binders: [{ name: 'x', tyText: 'A' }], context: [] };
-      root.inputs.TYPE.block.type = 'tt_given'; root.inputs.TYPE.block.fields = { IDX: '0' };
-      root.inputs.TERM.block.fields.REF = LBM.encodeRef('b' + root.id + ':v0', 'x');
+      const payload = __mltt.exportSession();
       __mltt.importSession(payload); __mltt.check();
     });
     assert.match(await page.textContent('#status'), /正确/);
@@ -82,6 +77,7 @@ const path = require('node:path');
     const editable = await page.evaluate(() => {
       const w = __mltt.workspace, make = type => { const b = w.newBlock(type); b.initSvg(); b.render(); return b; };
       const root = make('tt_problem'), entry = make('tt_judgment');
+      entry.ttContexts.setCount(0);
       entry.getInput('TYPE').connection.connect(make('tt_unit').outputConnection);
       entry.getInput('TERM').connection.connect(make('tt_star').outputConnection);
       root.getInput('TERM').connection.connect(entry.outputConnection);

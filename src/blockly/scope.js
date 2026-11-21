@@ -66,7 +66,7 @@
       if (!p.ttBinds) continue;
       const uids = p.ttBinds[inputName];
       if (!uids || !uids.length) continue;
-      // Multiple binders in one input (J's y,q / natrec's k,ih): later ones are more local.
+      // When an input binds several names, later ones are more local.
       for (let i = uids.length - 1; i >= 0; i--) {
         const uid = uids[i];
         const fname = p.ttNameFields && p.ttNameFields[uid];
@@ -178,7 +178,7 @@
 
   // ---------- Shared: scope declaration ----------
   function declareBinder(block, inputs) {
-    // inputs: {BODY:'b', STEP_BODY:['k','ih']}
+    // inputs maps each scoped input to its binder tags, e.g. {BODY:'x'}.
     const binds = {}, names = {};
     for (const [input, spec] of Object.entries(inputs)) {
       const tags = Array.isArray(spec) ? spec : [spec];

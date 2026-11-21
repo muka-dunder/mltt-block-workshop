@@ -5,10 +5,15 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function (runtime, printing, checking) {
   'use strict';
 
-  const { Var, U, Pi, Sigma, Lam, App, Pair, Fst, Snd, Id, NatRec, If, Absurd, J, Annot, Hole, Ref, Const, UnitRec, SigmaInd,
+  const { Var, U, Pi, Sigma, Lam, App, Pair, Fst, Snd, Id, If, Absurd, Annot, Hole, Ref, Const,
     NAT, ZERO, SUC, BOOL, TRUE, FALSE, EMPTY, UNIT, STAR, REFL, vNe, evalTm, envOf, CheckError, fail } = runtime;
   const { infer, check, sortOf, buildCtx, checkLevel } = checking;
   const { showVal } = printing;
+  const eliminators = (typeof window === 'undefined' && typeof module === 'object' && module.exports
+    ? require('./eliminators.js') : globalThis.MLTTCreateEliminators)(runtime, checking);
+  const eliminatorTerms = (typeof window === 'undefined' && typeof module === 'object' && module.exports
+    ? require('./eliminator-terms.js') : globalThis.MLTTCreateEliminatorTerms)(runtime, checking, eliminators.term);
+  const eliminatorBlockNames = Object.fromEntries(Object.keys(eliminators.definitions).map(name => ['tt_eliminator_' + name, name]));
   const entryChecking = (typeof window === 'undefined' && typeof module === 'object' && module.exports
     ? require('./entry-checking.js') : globalThis.MLTTCreateEntryChecking)(runtime, printing, checking, elabBlock);
   const { validateEntry, checkExplicitEntry, premiseNames } = entryChecking;
@@ -20,6 +25,8 @@
     opts = opts || {};
     if (!j) fail('E_EMPTY', 'No block here yet', null, null, 'noBlock');
     const src = j.id;
+    if (Object.hasOwn(eliminatorBlockNames, j.type)) return eliminators.term(eliminatorBlockNames[j.type], src,
+      [Number(j.fields?.A_LEVEL || 0), Number(j.fields?.B_LEVEL || 0)]);
     if (opts.contextual && entryChecking.hasContext(j)) {
       const aliases = new Map(opts.bindingAliases || []);
       for (const binding of entryChecking.contextEntries(j)) {
@@ -113,19 +120,6 @@
       case 'tt_pair': return Pair(el('A'), el('B'), src);
       case 'tt_if': return If(el('B'), el('X'), el('Y'), src);
       case 'tt_absurd': return Absurd(el('E'), src);
-      case 'tt_unitrec': return UnitRec(el('U'), el('MOT'), el('BASE'), src);
-      case 'tt_sigma_ind': {
-        const pUid = binds.MOT_BODY && binds.MOT_BODY[0];
-        const aUid = binds.STEP_BODY && binds.STEP_BODY[0];
-        const bUid = binds.STEP_BODY && binds.STEP_BODY[1];
-        const mot = Lam(nameOf(pUid), el('MOT_BODY', push(pUid)), null, src);
-        const stepScope = scope.concat([
-          { uid: aUid, name: nameOf(aUid) },
-          { uid: bUid, name: nameOf(bUid) }
-        ]);
-        const step = Lam(nameOf(aUid), Lam(nameOf(bUid), el('STEP_BODY', stepScope), null, src), null, src);
-        return SigmaInd(el('P'), mot, step, src);
-      }
       case 'tt_pi': {
         const uid = binds.BODY && binds.BODY[0];
         return Pi(nameOf(uid), el('DOM'), el('BODY', push(uid)), src);
@@ -144,28 +138,6 @@
         const ty = inp('TY') ? el('TY') : null;
         return App(Lam(nameOf(uid), el('BODY', push(uid)), ty, src), el('VALUE'), src);
       }
-      case 'tt_natrec': {
-        const mUid = binds.MOT_BODY && binds.MOT_BODY[0];
-        const kUid = binds.STEP_BODY && binds.STEP_BODY[0];
-        const iUid = binds.STEP_BODY && binds.STEP_BODY[1];
-        const mot = Lam(nameOf(mUid), el('MOT_BODY', push(mUid)), null, src);
-        const stepScope = scope.concat([
-          { uid: kUid, name: nameOf(kUid) },
-          { uid: iUid, name: nameOf(iUid) }
-        ]);
-        const step = Lam(nameOf(kUid), Lam(nameOf(iUid), el('STEP_BODY', stepScope), null, src), null, src);
-        return NatRec(el('N'), mot, el('Z'), step, src);
-      }
-      case 'tt_J': {
-        const yUid = binds.MOT_BODY && binds.MOT_BODY[0];
-        const qUid = binds.MOT_BODY && binds.MOT_BODY[1];
-        const motScope = scope.concat([
-          { uid: yUid, name: nameOf(yUid) },
-          { uid: qUid, name: nameOf(qUid) }
-        ]);
-        const mot = Lam(nameOf(yUid), Lam(nameOf(qUid), el('MOT_BODY', motScope), null, src), null, src);
-        return J(el('BASE'), mot, el('D'), el('B'), el('P'), src);
-      }
       default: fail('E_INTERNAL', 'Unknown block type ' + j.type, { src }, null, 'unknownBlock', { type: j.type });
     }
   }
@@ -181,6 +153,13 @@
     return false;
   }
 
+  function hasRequiredConstruction(block, level) {
+    if (level.requireBlock) return hasBlockType(block, level.requireBlock);
+    if (!block) return false;
+    return eliminatorBlockNames[block.type] === level.requireEliminator ||
+      Object.values(block.inputs || {}).some(child => hasRequiredConstruction(child, level));
+  }
+
   function checkBlocks(level, blockJson) {
     if (blockJson?.type === 'tt_problem' && !blockJson.inputs?.TYPE) return checkWorkshop(level, blockJson, []);
     let tm;
@@ -193,11 +172,11 @@
     }
     const r = checkLevel(level, tm);
     r.term = tm;
-    if (r.ok && level.requireBlock && !hasBlockType(blockJson, level.requireBlock)) {
+    if (r.ok && (level.requireBlock || level.requireEliminator) && !hasRequiredConstruction(blockJson, level)) {
       r.ok = false;
       r.error = new CheckError('E_REQUIRE', 'This level requires the ' +
-        (level.requireBlockName || level.requireBlock) + ' block', null, null, 'requiredBlock',
-        { name: level.requireBlockName || level.requireBlock });
+        (level.requireBlockName || level.requireEliminator || level.requireBlock) + ' block', null, null, 'requiredBlock',
+        { name: level.requireBlockName || level.requireEliminator || level.requireBlock });
       r.requireBlock = level.requireBlock;
     }
     return r;
@@ -314,9 +293,9 @@
           result.error = new CheckError('E_REQUIRE', 'Use the required inference rule', null, null, 'requiredBlock', { name: 'Π-elim' });
         }
       }
-      if (result.ok && level.requireBlock && !hasBlockType(blockJson, level.requireBlock)) {
+      if (result.ok && (level.requireBlock || level.requireEliminator) && !hasRequiredConstruction(blockJson, level)) {
         result.ok = false;
-        result.error = new CheckError('E_REQUIRE', 'This level requires the ' + (level.requireBlockName || level.requireBlock) + ' block', null, null, 'requiredBlock', { name: level.requireBlockName || level.requireBlock });
+        result.error = new CheckError('E_REQUIRE', 'This level requires the ' + (level.requireBlockName || level.requireEliminator || level.requireBlock) + ' block', null, null, 'requiredBlock', { name: level.requireBlockName || level.requireEliminator || level.requireBlock });
       }
       const output = Object.assign(result, { term: tm, declarations, assumptions });
       if (inspection) {
@@ -378,5 +357,8 @@
 
   return {
     elabBlock, checkBlocks, checkWorkshop, inspectWorkshop, checkCustomProblem,
+    eliminatorNames: Object.keys(eliminators.definitions), eliminatorTerm: eliminators.term,
+    eliminatorBlockNames,
+    ...eliminatorTerms,
   };
 });

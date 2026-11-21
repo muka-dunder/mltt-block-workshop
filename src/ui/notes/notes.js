@@ -1,7 +1,11 @@
 import './notes.css';
 import { versionedStorageKey } from '../version.js';
-import { TUTORIALS } from './tutorials.js';
-import { ANSWER_TUTORIALS } from './answer-tutorials.js';
+import { TUTORIALS as LEGACY_TUTORIALS } from './tutorials.js';
+import { ANSWER_TUTORIALS as LEGACY_ANSWERS } from './answer-tutorials.js';
+import { JOURNEY_GUIDES } from './journey-guides.js';
+import { JOURNEY_ANSWERS } from './journey-answers.js';
+const TUTORIALS = { ...LEGACY_TUTORIALS, ...JOURNEY_GUIDES };
+const ANSWER_TUTORIALS = { ...LEGACY_ANSWERS, ...JOURNEY_ANSWERS };
 
 const WORDS = {
   'zh-CN': { note: '注释', tutorial: '题目解说', answerTutorial: '解题思路', placeholder: '写下解释、想法或公式，例如 λx. x', collapse: '折叠', expand: '展开', remove: '删除注释', attach: '附着到选中的积木', detach: '解除附着', restore: '恢复原位', attached: '跟随积木', free: '自由摆放', noSelection: '先选中一个积木，再点击附着。' },
@@ -10,6 +14,10 @@ const WORDS = {
 
 export function createNotes({ workspace, host, locale, getLevel, getAnswer, onChange, getAnswerMode = () => false }) {
   const Blockly = window.Blockly;
+  const shelfWidth = () => {
+    const flyout = workspace.getFlyout();
+    return flyout && !flyout.autoClose && flyout.isVisible() ? flyout.getWidth() : 0;
+  };
   const layer = document.createElement('div');
   layer.className = 'notes-layer';
   host.parentElement.append(layer);
@@ -31,7 +39,7 @@ export function createNotes({ workspace, host, locale, getLevel, getAnswer, onCh
       if (note.tutorial && note.placement === 'right') {
         const rect = block.getSvgRoot().getBoundingClientRect(), hostRect = host.getBoundingClientRect();
         const origin = workspace.getOriginOffsetInPixels();
-        const available = host.clientWidth - (workspace.getFlyout()?.getWidth() || 0) - 32;
+        const available = host.clientWidth - shelfWidth() - 32;
         const below = rect.width + 24 + note.width > available;
         note.dx = ((below ? rect.left : rect.right + 24) - hostRect.left - origin.x) / workspace.scale - p.x;
         note.dy = ((below ? rect.bottom + 24 : rect.top) - hostRect.top - origin.y) / workspace.scale - p.y;
@@ -48,7 +56,7 @@ export function createNotes({ workspace, host, locale, getLevel, getAnswer, onCh
   }
   function fitTutorial(note) {
     if (!note.tutorial || note.manualSize) return;
-    const available = host.clientWidth - (workspace.getFlyout()?.getWidth() || 0) - 32;
+    const available = host.clientWidth - shelfWidth() - 32;
     note.width = Math.round(Math.min(520, Math.max(220, available * 0.55)));
     note.height = Math.min(720, Math.max(320, host.clientHeight - 64));
   }
@@ -178,13 +186,13 @@ export function createNotes({ workspace, host, locale, getLevel, getAnswer, onCh
   function focusTutorial() {
     const note = items.find(n => n.tutorial), answer = getAnswer();
     if (!note || !answer) return;
-    let shelf = workspace.getFlyout()?.getWidth() || 0;
+    let shelf = shelfWidth();
     let available = host.clientWidth - shelf - 32;
     if (note.placement === 'right') {
       fitTutorial(note);
       updateCard(note);
     }
-    shelf = workspace.getFlyout()?.getWidth() || 0;
+    shelf = shelfWidth();
     available = host.clientWidth - shelf - 32;
     const actual = answer.getSvgRoot().getBoundingClientRect(), hostRect = host.getBoundingClientRect();
     const below = actual.width + 24 + note.width > available;
@@ -219,7 +227,7 @@ export function createNotes({ workspace, host, locale, getLevel, getAnswer, onCh
       Object.assign(note, worldPosition(note));
     } else {
       const origin = workspace.getOriginOffsetInPixels();
-      const flyoutWidth = workspace.getFlyout()?.getWidth() || 0;
+      const flyoutWidth = shelfWidth();
       note.x = (Math.max(flyoutWidth + 18, host.clientWidth / 2 - note.width / 2) - origin.x) / workspace.scale;
       note.y = (Math.max(20, host.clientHeight / 2 - note.height / 2) - origin.y) / workspace.scale;
     }

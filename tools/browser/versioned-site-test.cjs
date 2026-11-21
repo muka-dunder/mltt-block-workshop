@@ -1,4 +1,5 @@
 'use strict';
+const { chooseLanguage } = require('./header-controls.cjs');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -75,9 +76,9 @@ const { chromium } = require('playwright');
     await local.goto(pathToFileURL(path.join(offline, 'index.html')).href);
     await local.waitForFunction(() => window.__mltt?.answerPreview);
     assert((await local.title()).includes('v0.0.1'));
-    const levels = await local.locator('#levelSelect option').count();
-    for (let i = 0; i < levels; i++) {
-      await local.selectOption('#levelSelect', String(i));
+    const levels = await local.locator('#levelSelect option').evaluateAll(options => options.map(option => option.value));
+    for (const i of levels) {
+      await local.selectOption('#levelSelect', i);
       await local.click('#viewAnswerBtn');
       await local.waitForFunction(() => __mltt.answerPreview.active);
       await local.evaluate(() => __mltt.check());
@@ -98,15 +99,15 @@ const { chromium } = require('playwright');
     const offlineUrl = local.url();
     await local.goto(offlineUrl);
     await local.waitForFunction(id => !!window.__mltt?.workspace.getBlockById(id), offlineId);
-    await local.selectOption('#languageSelect', 'zh-CN');
+    await chooseLanguage(local, 'zh-CN');
     const link = local.locator('.github-link');
     assert.equal(await link.getAttribute('href'), 'https://github.com/muka-dunder/mltt-block-workshop');
     for (const width of [1440, 1000, 390]) {
       await local.setViewportSize({ width, height: 900 });
       assert(await local.evaluate(() => {
-        const link = document.querySelector('.github-link').getBoundingClientRect(), reset = document.querySelector('#resetBtn').getBoundingClientRect();
-        return link.left >= reset.right && link.right <= innerWidth;
-      }), 'GitHub stays to the right of Reset at ' + width);
+        const link = document.querySelector('.github-link').getBoundingClientRect(), check = document.querySelector('#checkBtn').getBoundingClientRect();
+        return link.bottom < check.top && link.right <= innerWidth;
+      }), 'GitHub stays in the application bar at ' + width);
     }
     assert.deepEqual(localErrors, []);
     assert.deepEqual(network, [], 'Offline ZIP must not request a server or CDN');

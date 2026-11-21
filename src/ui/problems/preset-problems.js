@@ -28,7 +28,10 @@ export function termState(term, scope) {
     if (['ind_sigma', 'J'].includes(term.name)) state.fields.A_LEVEL = String(term.eliminatorLevels?.[0] || 0);
     if (term.name === 'ind_sigma') state.fields.B_LEVEL = String(term.eliminatorLevels?.[1] || 0);
   }
-  else if (term.t === 'ref') { state.type = 'tt_lemma'; state.fields.NAME = term.name; }
+  else if (term.t === 'ref') {
+    state.type = Object.keys(window.MLTT.lemmaBlockNames).find(type => window.MLTT.lemmaBlockNames[type] === term.name);
+    if (!state.type) throw new Error('Missing dedicated lemma block: ' + term.name);
+  }
   else if (['pi', 'sigma'].includes(term.t)) {
     state.type = term.t === 'pi' ? 'tt_pi' : 'tt_sigma';
     add('DOM', term.dom); add('BODY', term.cod, bind('BODY', [term.name], ['x']));
@@ -82,7 +85,7 @@ export function ensurePresetProblem(workspace, level, problem) {
 function ensurePreset(workspace, level, problem) {
   const M = window.MLTT, declarations = declarationsFor(level), context = M.buildCtx(declarations);
   problem.ttEntryVersion = 2;
-  problem.setFieldValue(level.id + ' · ' + level.title, 'NAME');
+  problem.setFieldValue(level.title, 'NAME');
   freeze(problem, true);
   const make = type => { const block = workspace.newBlock(type); block.initSvg(); block.render(); return block; };
   function attach(parent, input, block) {
@@ -171,6 +174,17 @@ function ensurePreset(workspace, level, problem) {
         required = submitted.getDescendants(false).find(matches);
       }
       for (let block = required; block && block !== entry; block = block.getParent()) freeze(block, true);
+    }
+    if (level.scaffoldPaths && !entry.getInputTargetBlock('TERM')) {
+      const scaffold = termState(level.solution, scope);
+      for (const path of level.scaffoldPaths) {
+        let parent = scaffold;
+        for (const input of path.slice(0, -1)) parent = parent.inputs?.[input]?.block;
+        if (!parent?.inputs?.[path.at(-1)]) throw new Error('Invalid lesson scaffold path: ' + level.id);
+        delete parent.inputs[path.at(-1)];
+      }
+      const block = Blockly.serialization.blocks.append(scaffold, workspace);
+      attach(entry, 'TERM', block); freeze(block, true, true);
     }
   }
   return problem;

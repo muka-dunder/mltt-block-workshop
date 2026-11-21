@@ -55,7 +55,12 @@
   }
   global.I18N = {
     t, setLocale, get locale() { return locale; },
-    level(lv) { return locale === 'zh-CN' ? Object.assign({}, lv, global.LEVELS_ZH_CN[lv.id]) : lv; },
+    level(lv) {
+      if (locale !== 'zh-CN') return lv;
+      const localized = Object.assign({}, lv, global.LEVELS_ZH_CN[lv.id]);
+      for (const key of ['title', 'tag', 'story']) if (lv[key + 'Zh']) localized[key] = lv[key + 'Zh'];
+      return localized;
+    },
     error(e) { return global.MLTT_ERRORS.format(e, locale); }
   };
   setLocale(locale);

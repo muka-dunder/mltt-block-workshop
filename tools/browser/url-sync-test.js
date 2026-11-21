@@ -1,4 +1,5 @@
 'use strict';
+const { chooseLanguage } = require('./header-controls.cjs');
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const { chromium } = require('playwright');
@@ -119,7 +120,7 @@ const { chromium } = require('playwright');
       block.setJudgmentLayout('stacked'); block.moveBy(120, 260); return block.id;
     });
     await waitPayload(page, { id: judgment, layout: 'stacked' });
-    await page.selectOption('#languageSelect', 'zh-CN');
+    await chooseLanguage(page, 'zh-CN');
     await waitPayload(page, { id: judgment, layout: 'stacked' });
     await page.evaluate(id => Blockly.ContextMenuRegistry.registry.getItem('mltt_lock_part').callback({ block: __mltt.workspace.getBlockById(id) }), custom.term);
     await waitPayload(page, { id: custom.term, locked: true });

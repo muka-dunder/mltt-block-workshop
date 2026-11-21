@@ -22,7 +22,7 @@ export function configureLevelGlobals(level, contextLines, inferContext) {
   });
   Object.assign(window, { GAME_HAS_BINDER: window.GAME_ANSWER_BINDERS.length > 0,
     GAME_ROOT_RULE: false, GAME_ANSWER_CTX: contextLines,
-    GAME_PROBLEM_PRESET: { id: level.id, title: level.id + ' · ' + level.title },
+    GAME_PROBLEM_PRESET: { id: level.id, title: level.title },
     GAME_INFER: !!level.inferTerm, GAME_INFER_TERM: '' });
   if (level.inferTerm) {
     try { window.GAME_INFER_TERM = M.show(inferContext, level.inferTerm); } catch (_) { window.GAME_INFER_TERM = '?'; }
@@ -30,7 +30,7 @@ export function configureLevelGlobals(level, contextLines, inferContext) {
 }
 
 export function createCustomMode({ workspace, state, notes, levels, loadLevel, refresh, status, toJson, onChange,
-  beforeModeChange, getAnswerState, onAnswerState }) {
+  beforeModeChange, getAnswerState, onAnswerState, onRenderUI }) {
   const zh = () => window.I18N.locale === 'zh-CN';
   const words = (cn, en) => zh() ? cn : en;
   let active = false, levelSession = null, timer = null;
@@ -76,20 +76,12 @@ export function createCustomMode({ workspace, state, notes, levels, loadLevel, r
     document.body.classList.toggle('custom-mode', active);
     const levelSelect = document.querySelector('#levelSelect');
     levelSelect.disabled = active;
-    levels().forEach((level, i) => {
-      levelSelect.options[i].textContent = active && i === levelSelect.selectedIndex
-        ? words('自由画布', 'Free canvas') : level.id + ' ' + level.title;
-    });
-    document.querySelector('#prevBtn').disabled = active;
-    document.querySelector('#nextBtn2').disabled = active;
     document.querySelector('#viewAnswerBtn').disabled = active;
     if (active) {
-      document.querySelector('#levelTitle').textContent = words('自由画布', 'Free canvas');
-      document.querySelector('#levelTag').textContent = words('自由构造', 'Free construction');
       document.querySelector('#levelStory').textContent = customLevel().story;
     }
-    document.querySelector('#levelTitle').title = document.querySelector('#levelTitle').textContent;
     levelSelect.title = levelSelect.selectedOptions[0]?.textContent || '';
+    onRenderUI?.();
   }
 
   function prepareCustom() {

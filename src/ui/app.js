@@ -2,22 +2,26 @@
 import { createNotes } from './notes/notes.js';
 import { APP_VERSION, versionedStorageKey } from './version.js';
 import { installPointerZoom } from './workspace/pointer-zoom.js';
+import { installCompactShelf } from './workspace/compact-shelf.js';
+import { installControlLayer } from './workspace/control-layer.js';
 import { createWorkshop, wt } from './workspace/workshop.js';
 import { makeTheme, toJson, createVariableTools } from './workspace/workspace-tools.js';
 import { createCustomMode, configureLevelGlobals } from './problems/custom-mode.js';
 import { createSharing } from './sharing/share.js';
 import { ensurePresetProblem } from './problems/preset-problems.js';
 import { createAnswerPreview } from './problems/solutions.js';
+import { createSeriesNavigation } from './navigation/series-navigation.js';
 
 (function () {
   'use strict';
   const $ = (s) => document.querySelector(s);
   const MLTT = window.MLTT;
   const t = window.I18N.t;
-  // Keep the existing sequence, then offer the inference-rule example.
-  const exposedLevels = () => window.LEVELS.levels.filter((lv, i) => i < 17 || lv.id === 'R0' || lv.id === 'R1').map(window.I18N.level);
+  // Stable IDs retain direct links; navigation presents curated series.
+  const exposedLevels = () => window.LEVELS.levels.map(window.I18N.level);
   let LEVELS = exposedLevels();
   let statusRenderer = null;
+  let statusTimer = null;
 
   const STORE = versionedStorageKey('progress');
   const state = {
@@ -26,13 +30,16 @@ import { createAnswerPreview } from './problems/solutions.js';
     busy: false,
     loading: false,
     mode: 'level',
+    checkingRequested: false,
   };
 
   let workspace = null;
   let answerBlock = null;
   let notes = null;
+  let compactShelf = null;
   let custom = null, sharing = null;
   let answerPreview = null;
+  const navigation = createSeriesNavigation({ getLevels: () => LEVELS, getIndex: () => state.index, loadLevel });
 
   const workshop = createWorkshop({ getWorkspace: () => workspace, getLevel: () => state.level,
     ensureAnswer, goalText, toJson });
@@ -53,16 +60,14 @@ import { createAnswerPreview } from './problems/solutions.js';
     $('#levelSelect').setAttribute('aria-label', t('selectLevel'));
     $('#languageSelect').setAttribute('aria-label', t('language'));
     $('#languageSelect').value = window.I18N.locale;
-    $('#nextBtn').textContent = state.index + 1 < LEVELS.length ? t('nextAction') : t('back');
-    for (const option of $('#levelSelect').options) {
-      const lv = LEVELS[Number(option.value)];
-      option.textContent = lv.id + ' ' + lv.title;
-    }
+    navigation.refresh();
+    $('#nextBtn').textContent = navigation.nextIndex() !== null ? t('nextAction') : t('stay');
     workshop.renderLanguage();
     if (notes) notes.setLocale();
     if (custom) custom.renderUI();
     if (sharing) sharing.setLocale();
     answerPreview?.setLocale();
+    compactShelf?.setLocale();
   }
 
   function switchLanguage(locale) {
@@ -105,14 +110,15 @@ import { createAnswerPreview } from './problems/solutions.js';
   function loadProgress() {
     try {
       const raw = localStorage.getItem(STORE);
-      const index = raw && JSON.parse(raw).index;
+      const saved = raw && JSON.parse(raw);
+      const index = saved?.levelId ? LEVELS.findIndex(level => level.id === saved.levelId) : saved?.index;
       if (Number.isInteger(index) && index >= 0) state.index = index;
     } catch (e) { /* ignore */ }
     if (state.index >= LEVELS.length) state.index = 0;
   }
   function saveProgress() {
     try {
-      localStorage.setItem(STORE, JSON.stringify({ index: state.index }));
+      localStorage.setItem(STORE, JSON.stringify({ index: state.index, levelId: state.level.id }));
     } catch (e) { /* ignore */ }
   }
   function esc(s) {
@@ -126,18 +132,43 @@ import { createAnswerPreview } from './problems/solutions.js';
   // ---------- Panel / header ----------
   function renderPanel() {
     const lv = state.level;
-    $('#levelTitle').textContent = lv.id + ' · ' + lv.title;
-    $('#levelTag').textContent = lv.tag;
     $('#levelStory').textContent = lv.story;
     if (custom) custom.renderUI();
+    navigation.setCustom(state.mode === 'custom');
+    renderBranchLinks();
+  }
+
+  function renderBranchLinks() {
+    const zh = window.I18N.locale === 'zh-CN', level = state.level;
+    const names = { functions: zh ? '函数工坊' : 'Function workshop', dependent: zh ? '依赖类型' : 'Dependent types' };
+    for (const id of ['branchBtn', 'winBranchBtn']) {
+      const button = $('#' + id), branch = level.recommendedBranch;
+      button.hidden = state.mode === 'custom' || !names[branch];
+      button.textContent = (zh ? '深入：' : 'Explore: ') + (names[branch] || '');
+    }
+    $('#returnJourneyBtn').hidden = state.mode === 'custom' || !['functions', 'dependent'].includes(level.series);
+    $('#returnJourneyBtn').textContent = zh ? '返回主线' : 'Return to journey';
+  }
+
+  function enterSeries(series) {
+    $('#overlay').classList.remove('show');
+    $('#seriesSelect').value = series;
+    $('#seriesSelect').dispatchEvent(new Event('change'));
   }
 
   function setStatus(html, kind) {
-    statusRenderer = { html, kind };
+    const render = html;
     if (typeof html === 'function') html = html();
     const el = $('#status');
+    if (!el.hidden && statusRenderer?.kind === kind && el.innerHTML === html) return;
+    clearTimeout(statusTimer);
+    statusRenderer = { html: render, kind };
     el.className = 'status ' + (kind || '');
-    el.innerHTML = html;
+    el.hidden = kind === 'idle' || !html;
+    el.innerHTML = el.hidden ? '' : html;
+    if (!el.hidden) statusTimer = setTimeout(() => {
+      el.hidden = true; el.innerHTML = ''; statusRenderer = null;
+    }, ['warn', 'err'].includes(kind) ? 8000 : 4000);
   }
 
   function loadLevel(i) {
@@ -146,6 +177,7 @@ import { createAnswerPreview } from './problems/solutions.js';
     try {
       if (notes) notes.beforeLevelChange();
       state.loading = true;
+      state.checkingRequested = false;
       state.index = (i + LEVELS.length) % LEVELS.length;
       state.level = LEVELS[state.index];
 
@@ -164,7 +196,7 @@ import { createAnswerPreview } from './problems/solutions.js';
       setStatus(() => state.level.inferTerm
         ? t('inferIdle')
         : t('idle'), 'idle');
-      $('#levelSelect').value = String(state.index);
+      navigation.refresh();
       saveProgress();
       state.loading = false;
       Blockly.svgResize(workspace);
@@ -249,6 +281,7 @@ import { createAnswerPreview } from './problems/solutions.js';
 
   // ---------- Checking ----------
   function doCheck(showOverlay) {
+    state.checkingRequested = true;
     refreshVars();
     if (custom?.active) return custom.check();
     const slot = answerTerm();
@@ -300,7 +333,8 @@ import { createAnswerPreview } from './problems/solutions.js';
     $('#winText').innerHTML = esc(t('correct')) + '<br><span class="mono">' +
       esc(lv.solutionText) + '</span>';
     $('#overlay').classList.add('show');
-    $('#nextBtn').textContent = state.index + 1 < LEVELS.length ? t('nextAction') : t('back');
+    $('#nextBtn').textContent = navigation.nextIndex() !== null ? t('nextAction') : t('stay');
+    renderBranchLinks();
   }
 
   // ---------- Initialization ----------
@@ -309,9 +343,10 @@ import { createAnswerPreview } from './problems/solutions.js';
       $('#blocklyDiv').textContent = t('fatal');
       return;
     }
-    renderLanguage();
     loadProgress();
     state.level = LEVELS[state.index];
+    navigation.init();
+    renderLanguage();
 
     workspace = Blockly.inject('blocklyDiv', {
       toolbox: toolboxXml(),
@@ -326,25 +361,13 @@ import { createAnswerPreview } from './problems/solutions.js';
       media: window.BLOCKLY_MEDIA,
     });
     installPointerZoom(workspace);
+    installControlLayer(workspace, $('#blocklyDiv'));
+    compactShelf = installCompactShelf(workspace, { onChange: () => notes?.refresh() });
 
     // lexical-variables flydown system (hover a local variable to pop out a getter block).
     if (window.LexicalVariablesPlugin) {
       try { window.LexicalVariablesPlugin.init(workspace); }
       catch (e) { console.warn('LexicalVariablesPlugin.init failed', e); }
-    }
-
-    // Level dropdown
-    const sel = $('#levelSelect');
-    LEVELS.forEach((lv, i) => {
-      const o = document.createElement('option');
-      o.value = String(i);
-      o.textContent = lv.id + ' ' + lv.title;
-      sel.appendChild(o);
-    });
-    sel.addEventListener('change', () => loadLevel(parseInt(sel.value, 10)));
-    if (LEVELS.length <= 1) {
-      const nav = document.querySelector('.nav');
-      if (nav) nav.style.display = 'none';
     }
 
     $('#languageSelect').addEventListener('change', (e) => switchLanguage(e.target.value));
@@ -354,12 +377,14 @@ import { createAnswerPreview } from './problems/solutions.js';
     $('#resetBtn').addEventListener('click', () => {
       if (confirm(t('clear'))) custom.active ? custom.reset() : loadLevel(state.index);
     });
-    $('#prevBtn').addEventListener('click', () => loadLevel(state.index - 1));
-    $('#nextBtn2').addEventListener('click', () => loadLevel(state.index + 1));
+    $('#prevBtn').addEventListener('click', () => navigation.move(-1));
+    $('#nextBtn2').addEventListener('click', () => navigation.move(1));
+    for (const id of ['branchBtn', 'winBranchBtn']) $('#' + id).addEventListener('click', () => enterSeries(state.level.recommendedBranch));
+    $('#returnJourneyBtn').addEventListener('click', () => enterSeries('journey'));
     $('#winClose').addEventListener('click', () => $('#overlay').classList.remove('show'));
     $('#nextBtn').addEventListener('click', () => {
       $('#overlay').classList.remove('show');
-      loadLevel(state.index + 1);
+      navigation.move(1);
     });
 
     document.addEventListener('keydown', (e) => {
@@ -375,6 +400,7 @@ import { createAnswerPreview } from './problems/solutions.js';
       // The term in the slot changed; re-render the answer block (large terms can overflow the border).
       if (answerBlock) { try { answerBlock.render(); } catch (e) { /* ignore */ } }
       if (notes) notes.refresh();
+      if (!state.checkingRequested) return;
       const slot = answerTerm();
       const term = slot.term;
       if (term) {
@@ -420,6 +446,7 @@ import { createAnswerPreview } from './problems/solutions.js';
       onChange: () => { if (!state.loading) sharing?.scheduleSync(); },
       beforeModeChange: () => !answerPreview?.active || answerPreview.restore(),
       getAnswerState: () => answerPreview?.exportState() || null,
+      onRenderUI: () => { navigation.setCustom(state.mode === 'custom'); renderBranchLinks(); },
       onAnswerState: value => answerPreview?.importState(value) });
     custom.init();
     sharing = createSharing({ exportSession: () => custom.exportSession(), importSession: payload => custom.importSession(payload),

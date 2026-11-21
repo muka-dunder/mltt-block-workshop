@@ -7,6 +7,15 @@
   if (!global.BlockBinding) throw new Error('Load scope.js before blocks.js');
   const { declareBinder, nameField } = global.BlockBinding;
   const { FieldBinderRef, FieldLocalVar } = global;
+  for (const [type, name] of Object.entries(global.MLTT.lemmaBlockNames)) {
+    B.Blocks[type] = {
+      init() {
+        this.appendDummyInput().appendField(name);
+        this.setOutput(true, null); this.setColour('#d7ccc8');
+        this.setTooltip(() => name + ' : ' + global.MLTT.showVal([], global.MLTT.infer([], global.MLTT.Ref(name))));
+      },
+    };
+  }
   for (const [type, name] of Object.entries(global.MLTT.eliminatorBlockNames)) {
     B.Blocks[type] = {
       init() {
@@ -105,8 +114,9 @@
         .appendField('Π (')
         .appendField(nameField('x'), 'XNAME')
         .appendField(':');
+      this.appendDummyInput('PARAM_END').appendField(')');
       this.appendEndRowInput('TYPE_BREAK').setVisible(false);
-      this.appendValueInput('BODY').appendField(') →');
+      this.appendValueInput('BODY').appendField('→');
       this.setInputsInline(true);
       this.setOutput(true, null);
       this.setTooltip(() => t('block.piTooltip'));
@@ -133,8 +143,9 @@
         .appendField('Σ (')
         .appendField(nameField('x'), 'XNAME')
         .appendField(':');
+      this.appendDummyInput('PARAM_END').appendField(')');
       this.appendEndRowInput('TYPE_BREAK').setVisible(false);
-      this.appendValueInput('BODY').appendField(') ×');
+      this.appendValueInput('BODY').appendField('×');
       this.setInputsInline(true);
       this.setOutput(true, null);
       this.setTooltip(() => t('block.sigmaTooltip'));
@@ -288,12 +299,6 @@
         options: [['0', '0'], ['1', '1']]
       }],
       output: null, colour: '#d7ccc8'
-    },
-    {
-      type: 'tt_lemma', message0: 'lemma %1', messageKey: 'lemmaMessage',
-      args0: [{ type: 'field_input', name: 'NAME', text: 'add' }],
-      output: null, colour: '#d7ccc8',
-      tooltipKey: 'lemmaTooltip'
     }
   ];
   for (const definition of simpleBlocks) {

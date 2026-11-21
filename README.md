@@ -59,7 +59,7 @@ readable and checked; dependency feedback still identifies assumptions used.
 Canvas notes are separate from checked expressions. Use **+ Note** or a block's
 context menu to create a plain-text card. Cards can be moved, resized, collapsed,
 and attached to a block so they follow it. Tutorial explanations are read-only
-and keep their own position-restoration control. All exposed levels (L0–L16) include bilingual
+and keep their own position-restoration control. All exposed lessons include bilingual
 explanations beside the answer, with larger text and cards for detailed guidance.
 Personal notes are saved per level in this
 browser and survive answer resets and reloads. Delete each personal note using
@@ -238,7 +238,11 @@ Six layers of defense:
 
 ## Levels
 
-> The UI exposes L0-L16 and the inference-rule examples R0/R1. L17-L22 remain in the data and can be re-enabled.
+The selector offers **Journey** (12 lessons), **Function workshop** (4), and **Dependent types** (3), followed by a disabled “More coming soon” entry. Series remember their last lesson; previous/next remain within that series. Related journey lessons link to an optional workshop, and workshop lessons can return to the journey.
+
+The journey introduces functions, dependent types, unit, dependent pairs, natural numbers, equality, transport, and induction. The later lessons freeze the surrounding construction and leave its key step for the player. All 19 lessons include separate bilingual problem guides and solution walkthroughs, using the same editable blocks as the custom canvas. Internal IDs remain stable for sharing; old lessons and R0/R1 still open by direct URL under “Earlier levels”. The table below lists the original lesson IDs for reference.
+
+On small screens settings fold into a menu, and the workshop panel starts collapsed to preserve canvas space. Phones use a Blocks drawer; the shelf stays expanded on wider screens. Run `npm run test:journey:ui` for lesson, navigation and responsive checks.
 
 R0 (“Your first inference”) starts with an inference card inside the submission
 entry. Fill its premise slots with `f` and `x`, choose `Π-elim` beside the line,

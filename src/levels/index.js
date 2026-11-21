@@ -99,7 +99,9 @@
     ? require('./advanced.js') : globalThis.MLTTLevelAdvanced;
   const proofs = typeof window === 'undefined' && typeof module === 'object' && module.exports
     ? require('./proofs.js') : globalThis.MLTTLevelProofs;
-  const raw = [...foundations(syntax), ...advanced(syntax), ...proofs(syntax)];
+  const journey = typeof window === 'undefined' && typeof module === 'object' && module.exports
+    ? require('./journey.js') : globalThis.MLTTLevelJourney;
+  const raw = journey(syntax, [...foundations(syntax), ...advanced(syntax), ...proofs(syntax)]);
 
   // Expand: close each given ty in the context of all preceding names.
   // ---------- Reference solution block counts (used for stars) ----------

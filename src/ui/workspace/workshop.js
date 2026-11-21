@@ -32,7 +32,7 @@ export function createWorkshop({ getWorkspace, getLevel, ensureAnswer, goalText,
     { name: 'Types', colour: '#5b8def', types: ['tt_pi', 'tt_sigma', 'tt_id', 'tt_nat', 'tt_bool', 'tt_empty', 'tt_unit', 'tt_U'] },
     { name: 'Terms', colour: '#4f9d76', types: ['tt_lam', 'tt_var', 'tt_app', 'tt_pair', 'tt_zero', 'tt_suc', 'tt_true', 'tt_false', 'tt_star', 'tt_refl', 'tt_let', 'tt_annot', 'tt_hole'] },
     { name: 'Eliminators', colour: '#c47a3d', types: [...Object.keys(MLTT.eliminatorBlockNames), 'tt_if', 'tt_absurd'] },
-    { name: 'Lemmas', colour: '#7b6ee0', types: ['tt_lemma'] },
+    { name: 'Lemmas', colour: '#7b6ee0', types: Object.keys(MLTT.lemmaBlockNames) },
   ];
 
   function parseXml(str) {
@@ -86,7 +86,6 @@ export function createWorkshop({ getWorkspace, getLevel, ensureAnswer, goalText,
       xml += '<label text="' + esc(t(g.name)) + '"></label>';
       for (const t of types) {
         xml += '<block type="' + t + '">';
-        if (t === 'tt_lemma') xml += '<field name="NAME">add</field>';
         xml += '</block>';
       }
     }

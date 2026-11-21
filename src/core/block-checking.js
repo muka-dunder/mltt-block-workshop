@@ -14,6 +14,7 @@
   const eliminatorTerms = (typeof window === 'undefined' && typeof module === 'object' && module.exports
     ? require('./eliminator-terms.js') : globalThis.MLTTCreateEliminatorTerms)(runtime, checking, eliminators.term);
   const eliminatorBlockNames = Object.fromEntries(Object.keys(eliminators.definitions).map(name => ['tt_eliminator_' + name, name]));
+  const lemmaBlockNames = { tt_lemma_add: 'add' };
   const entryChecking = (typeof window === 'undefined' && typeof module === 'object' && module.exports
     ? require('./entry-checking.js') : globalThis.MLTTCreateEntryChecking)(runtime, printing, checking, elabBlock);
   const { validateEntry, checkExplicitEntry, premiseNames } = entryChecking;
@@ -25,6 +26,7 @@
     opts = opts || {};
     if (!j) fail('E_EMPTY', 'No block here yet', null, null, 'noBlock');
     const src = j.id;
+    if (Object.hasOwn(lemmaBlockNames, j.type)) return Ref(lemmaBlockNames[j.type], src);
     if (Object.hasOwn(eliminatorBlockNames, j.type)) return eliminators.term(eliminatorBlockNames[j.type], src,
       [Number(j.fields?.A_LEVEL || 0), Number(j.fields?.B_LEVEL || 0)]);
     if (opts.contextual && entryChecking.hasContext(j)) {
@@ -97,7 +99,6 @@
       case 'tt_star': return Object.assign({}, STAR, { src });
       case 'tt_refl': return Object.assign({}, REFL, { src });
       case 'tt_hole': return Hole(j.id, src);
-      case 'tt_lemma': return Ref((j.fields && j.fields.NAME) || '', src);
       case 'tt_problem':
       case 'tt_answer':
       case 'tt_goal': {
@@ -358,7 +359,7 @@
   return {
     elabBlock, checkBlocks, checkWorkshop, inspectWorkshop, checkCustomProblem,
     eliminatorNames: Object.keys(eliminators.definitions), eliminatorTerm: eliminators.term,
-    eliminatorBlockNames,
+    eliminatorBlockNames, lemmaBlockNames,
     ...eliminatorTerms,
   };
 });

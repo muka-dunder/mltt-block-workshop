@@ -382,7 +382,7 @@ Examine how the two premises above the bar, the rule name beside the bar, and th
 为什么前提必须是判断呢？因为光把一个名字 f 摆在横线上是不够的，我们必须同时在前提里明确断言：“在条件 Γ 下，f 确实具有函数类型 A → B（即 Γ ⊢ f : A → B）”，以及“在条件 Γ 下，x 确实具有参数类型 A（即 Γ ⊢ x : A）”。只有当这两个前提判断都成立时，横线右侧的 Π-elim 规则才能名正言顺地推导出横线下方的结论判断：“在条件 Γ 下，应用项 f x 具有类型 B（即 Γ ⊢ f x : B）”！
 
 观察画布上嵌套在横线上方的两张紫色判断卡，以及横线下方的第三张紫色判断卡，请理清这里的“两层结构”：
-• 每一张紫色小卡片内部，都有自己的“条件 Γ ⊢ 项 : 类型”结构；注意它们内部 Γ 旁边的可选附加条件槽是留空的，这表示它们直接沿用最顶部的共同条件 Γ，不需要你重复添加声明。
+• 每一张紫色小卡片内部，都有自己的“条件 Γ ⊢ 项 : 类型”结构；它们顶部显示“Γ ∅”，表示不额外添加局部条件，直接沿用最顶部的共同条件 Γ。
 • 而大卡片中间的那条大横线，则是把上面两张“前提判断卡”和下面那张“结论判断卡”连接成一步完整的逻辑推理。
 
 分别看看三张紫色判断卡冒号右边的类型要求（第一张要 A → B，第二张要 A，下方第三张要 B），再来补全每张判断卡里的项以及横线旁边的规则名称吧！`,
@@ -394,7 +394,7 @@ Why write full judgments as premises? Because to justify function application, i
 Once both premise judgments are established, the rule Π-elim beside the bar justifies the conclusion judgment below the bar: Γ ⊢ f x : B (“under context Γ, the application f x has type B”).
 
 Keep the two structural levels clear as you read the diagram:
-• Inside each purple judgment card, the symbol ⊢ connects that card's context Γ (which automatically inherits the shared declarations at the top when its optional extra-condition slot is left empty) to a term and its type.
+• Inside each purple judgment card, the symbol ⊢ connects that card's context Γ (shown as Γ ∅ when no extra local assumptions are added, meaning it inherits the shared declarations at the top) to a term and its type.
 • Across the outer card, the long horizontal bar connects the two premise judgments above to the conclusion judgment below.
 
 Check the required type on the right of each purple judgment card, then complete the missing terms and the rule slot.`

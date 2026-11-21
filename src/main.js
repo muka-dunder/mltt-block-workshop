@@ -27,6 +27,7 @@ async function start() {
   await import('./levels/foundations.js');
   await import('./levels/advanced.js');
   await import('./levels/proofs.js');
+  await import('./levels/journey.js');
   await import('./levels/index.js');
   await import('./blockly/scope.js');
   await import('./blockly/blocks.js');
@@ -41,5 +42,7 @@ async function start() {
 
 start().catch((error) => {
   console.error(error);
-  document.querySelector('#status').textContent = '应用加载失败 / Failed to load the application.';
+  const status = document.querySelector('#status');
+  status.hidden = false; status.className = 'status err';
+  status.textContent = '应用加载失败 / Failed to load the application.';
 });

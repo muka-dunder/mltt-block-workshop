@@ -307,7 +307,7 @@ Try changing the block's level from 0 to 1 on the canvas and watch its checked t
 1. 顶部共同条件 Γ：声明了类型 A、B，函数 f : A → B，以及参数 x : A。这些都是本步推理共享的可用资源。
 2. 横线上方的两个前提：第一格放了函数 f，第二格放了参数 x。注意顺序不能反——必须先给函数，再给参数。
 3. 横线右侧的规则 Π-elim：代表“Π 类型的消去规则（也就是函数应用）”。它告诉检查器：请把第一个前提当作函数、第二个前提当作参数来组合。
-4. 横线下方的结论 Γ ⊢ f x : B：在结论判断的项位置构造了 f x，冒号右边确认它的类型是 B。注意结论里 Γ 旁边的可选条件槽是留空的，这表示直接继承顶部的共同条件，不用再重写一遍。
+4. 横线下方的结论 Γ ⊢ f x : B：在结论判断的项位置构造了 f x，冒号右边确认它的类型是 B。注意结论里显示“Γ ∅”，表示没有额外增加条件，直接继承顶部的共同条件即可。
 
 总结一下：在普通关卡里，检查器在后台默默做掉了这些核对；而在推导卡里，你把“前提是谁、依据哪条规则、得出什么结论”全都明明白白地摆在了台面上！`,
     en: `The canvas now shows a complete deduction step for function application. Let's read the diagram from top to bottom to see how all its parts agree:
@@ -315,7 +315,7 @@ Try changing the block's level from 0 to 1 on the canvas and watch its checked t
 1. Shared context Γ at the top: declares A : Type, B : Type, f : A → B, and x : A as the resources available for this inference.
 2. Two premises above the bar: the first slot holds the function f, and the second slot holds its argument x. Order matters here—function first, argument second.
 3. Rule Π-elim beside the bar: names “Π-elimination” (function application). It tells the checker to match the first premise as a function of type A → B and the second premise as its A argument.
-4. Conclusion Γ ⊢ f x : B below the bar: constructs the resulting application term f x and confirms its type is B. Notice that the optional context slot beside Γ in the conclusion stays empty, which means it automatically inherits the shared declarations at the top.
+4. Conclusion Γ ⊢ f x : B below the bar: constructs the resulting application term f x and confirms its type is B. Notice that the conclusion shows Γ ∅ (no extra local context added), which means it automatically inherits the shared declarations at the top.
 
 Whereas regular levels run this check behind the scenes, this inference card puts the premises, the rule, and the resulting conclusion right out in the open.`
   },
@@ -324,7 +324,7 @@ Whereas regular levels run this check behind the scenes, this inference card put
 
 1. 上方第一张前提判断：Γ ⊢ f : A → B。它不仅指出了要用 f，还明确检查了“在条件 Γ 下，f 确实具有函数类型 A → B”。
 2. 上方第二张前提判断：Γ ⊢ x : A。它明确检查了“在同样的条件 Γ 下，x 确实具有参数类型 A”。
-   • 小细节：这两张前提卡片内部 Γ 旁边的附加条件槽都是空的，表示它们完全共享顶部的条件 Γ，没有引入任何额外假设。
+   • 小细节：这两张前提卡片内部都显示“Γ ∅”，表示它们完全共享顶部的条件 Γ，没有引入任何额外假设。
 3. 横线与规则 Π-elim：把上述两张已经通过检验的前提判断连接起来，依据 Π-elim 规则，名正言顺地推出下方的结论判断 Γ ⊢ f x : B！
 
 整张推导大卡片本身也可以被当成一个具有类型 B 的项来使用（它的计算行为和普通的应用积木 f x 完全一样）。学会读懂“单张判断（⊢）”和“前提推结论（横线）”这两层结构，你就真正看懂了类型论教材里那些推导规则的记号了！`,
@@ -332,7 +332,7 @@ Whereas regular levels run this check behind the scenes, this inference card put
 
 1. First premise judgment: Γ ⊢ f : A → B. Rather than just naming f, it explicitly establishes that under context Γ, f has function type A → B.
 2. Second premise judgment: Γ ⊢ x : A. Under that same context Γ, it establishes that x has argument type A.
-   • Notice that the optional extra-context slots beside Γ inside these premise cards are left empty: they inherit the top shared context directly without adding new hypotheses.
+   • Notice that both premise cards show Γ ∅ inside: they inherit the top shared context directly without adding new hypotheses.
 3. Rule Π-elim and conclusion: combining these two checked premise judgments, Π-elim justifies the conclusion judgment Γ ⊢ f x : B below the bar!
 
 Just like a regular f x block, this entire inference card produces a valid term of type B. Once you can read both levels—an individual judgment (⊢) and a rule step (the horizontal bar)—you can read the formal inference rules in any type theory textbook!`

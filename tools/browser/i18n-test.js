@@ -1,13 +1,16 @@
 /* Browser regression: locale changes preserve unfinished and completed work. */
 'use strict';
 const assert = require('assert');
+const { chooseLanguage } = require('./header-controls.cjs');
 const { chromium } = require('playwright');
 const path = require('path');
 const { levels } = require('../../src/levels/index.js');
 const zhLevels = require('../../src/i18n/locales/levels.zh-CN.js');
 const errorMessages = require('../../src/i18n/locales/errors.js');
-assert.equal(Object.keys(zhLevels).length, levels.length);
-for (const lv of levels) assert.equal(zhLevels[lv.id].hints.length, lv.hints.length);
+for (const lv of levels) {
+  assert(lv.titleZh || zhLevels[lv.id]?.title, 'Every level needs a Chinese title');
+  if (zhLevels[lv.id]) assert.equal(zhLevels[lv.id].hints.length, lv.hints.length);
+}
 assert.deepEqual(Object.keys(errorMessages.en).sort(), Object.keys(errorMessages['zh-CN']).sort());
 for (const key of Object.keys(errorMessages.en)) {
   assert.deepEqual((errorMessages.en[key].match(/\{\w+\}/g) || []).sort(),
@@ -48,7 +51,7 @@ for (const key of Object.keys(errorMessages.en)) {
     });
     assert(media.ok && media.type && media.type.startsWith('image/'), 'Blockly sprites must load as an image');
     await page.waitForFunction(() => window.__mltt && __mltt.workspace);
-    await page.selectOption('#languageSelect', 'en');
+    await chooseLanguage(page, 'en');
     await page.selectOption('#levelSelect', '0');
     const binder = await page.evaluateHandle(() => {
       const context = __mltt.workspace.getBlocksByType('tt_problem')[0].getInputTargetBlock('TERM');
@@ -78,7 +81,7 @@ for (const key of Object.keys(errorMessages.en)) {
     });
     await page.click('#checkBtn');
     assert.match(await page.textContent('#status'), /empty/);
-    await page.selectOption('#languageSelect', 'zh-CN');
+    await chooseLanguage(page, 'zh-CN');
     assert.equal(await page.textContent('#checkBtn'), '检查');
     assert.match(await page.textContent('#status'), /空/);
     assert.deepEqual(await page.evaluate(() => __mltt.workspace.getAllBlocks().map(b => b.id).sort()), before.ids);
@@ -99,11 +102,14 @@ for (const key of Object.keys(errorMessages.en)) {
     const progressKey = await page.evaluate(() => Object.keys(localStorage).find(key => key.startsWith('mltt.') && key.endsWith('.progress')));
     assert(progressKey, 'Progress must use a version-specific storage key');
     const progress = await page.evaluate(key => localStorage.getItem(key), progressKey);
-    await page.selectOption('#languageSelect', 'en');
+    await page.click('#winClose');
+    await chooseLanguage(page, 'en');
+    await page.click('#checkBtn');
     assert.match(await page.textContent('#status'), /Correct type/);
     assert.match(await page.textContent('#winText'), /Correct type/);
     assert.equal(await page.evaluate(key => localStorage.getItem(key), progressKey), progress);
-    await page.selectOption('#languageSelect', 'zh-CN');
+    await page.click('#winClose');
+    await chooseLanguage(page, 'zh-CN');
     await page.evaluate(() => __mltt.check());
     assert.match(await page.textContent('#status'), /类型正确/);
     await page.waitForFunction(() => location.search === '?level=L1' && location.hash.startsWith('#workshop=v1.'));
@@ -113,17 +119,18 @@ for (const key of Object.keys(errorMessages.en)) {
     assert.equal(await page.getAttribute('html', 'lang'), 'zh-CN');
     assert.equal(await page.inputValue('#levelSelect'), '1');
     assert.equal(await page.evaluate(key => localStorage.getItem(key), progressKey), progress);
-    const exposedLevels = await page.locator('#levelSelect option').count();
-    for (let i = 0; i < exposedLevels; i++) {
-      await page.selectOption('#levelSelect', String(i));
+    const exposedLevels = await page.locator('#levelSelect option').evaluateAll(options => options.map(option => option.value));
+    for (const index of exposedLevels) {
+      await page.selectOption('#levelSelect', index);
       const staleReferences = await page.evaluate(() => __mltt.workspace.getBlocksByType('tt_var', false)
         .filter(block => block.getField('REF').getSvgRoot().textContent.includes('⚠'))
         .map(block => ({ id: block.id, text: block.getField('REF').getSvgRoot().textContent })));
       assert.deepEqual(staleReferences, [], 'Switching levels must refresh references before any canvas edit');
-      await page.selectOption('#languageSelect', 'en');
-      await page.selectOption('#languageSelect', 'zh-CN');
+      await chooseLanguage(page, 'en');
+      await chooseLanguage(page, 'zh-CN');
       const levelId = await page.evaluate(() => __mltt.state.level.id);
-      assert.match(await page.textContent('#levelTitle'), new RegExp(zhLevels[levelId].title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+      const title = levels.find(level => level.id === levelId).titleZh || zhLevels[levelId].title;
+      assert((await page.locator('#levelSelect option:checked').textContent()).includes(title));
       await page.evaluate(() => __mltt.check());
       assert.match(await page.textContent('#status'), /E_EMPTY/);
     }

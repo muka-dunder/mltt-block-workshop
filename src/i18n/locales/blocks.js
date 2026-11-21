@@ -20,9 +20,7 @@
       'block.annotTooltip': 'Type annotation: write the judgment into the term.',
       'block.reflTooltip': 'Proof of definitional equality.',
       'block.holeTooltip': 'Hole: the expected type is recorded when checking.',
-      'block.lemmaTooltip': 'A proven transparent definition.',
-      'block.ifMessage': 'if %1 then %2 else %3',
-      'block.lemmaMessage': 'lemma %1'
+      'block.ifMessage': 'if %1 then %2 else %3'
     },
     'zh-CN': {
       'block.noVariables': '∅ 没有变量',
@@ -43,9 +41,7 @@
       'block.annotTooltip': '类型标注：将类型判断写入项中。',
       'block.reflTooltip': '定义相等的证明。',
       'block.holeTooltip': '空位：检查时会记录预期类型。',
-      'block.lemmaTooltip': '已证明的透明定义。',
-      'block.ifMessage': '如果 %1 那么 %2 否则 %3',
-      'block.lemmaMessage': '引理 %1'
+      'block.ifMessage': '如果 %1 那么 %2 否则 %3'
     }
   };
 })(typeof window !== 'undefined' ? window : globalThis);

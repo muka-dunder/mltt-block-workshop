@@ -1,5 +1,6 @@
 'use strict';
 const assert = require('node:assert/strict');
+const { chooseLanguage } = require('./header-controls.cjs');
 const path = require('node:path');
 const { chromium } = require('playwright');
 
@@ -20,7 +21,7 @@ const { chromium } = require('playwright');
     page.on('pageerror', error => errors.push(error.message));
     await page.goto('http://127.0.0.1:18752/?level=L0');
     await page.waitForFunction(() => window.__mltt?.custom);
-    await page.selectOption('#languageSelect', 'en');
+    await chooseLanguage(page, 'en');
 
     async function scene(tab) {
       return tab.evaluate(async () => {
@@ -71,9 +72,16 @@ const { chromium } = require('playwright');
       }, { active, originalBlock });
     }
 
-    const count = await page.locator('#levelSelect option').count(); assert.equal(count, 19);
-    for (let i = 0; i < count; i++) {
-      await page.selectOption('#levelSelect', String(i));
+    const course = [];
+    for (const series of ['journey', 'functions', 'dependent']) {
+      await page.selectOption('#seriesSelect', series);
+      for (const value of await page.locator('#levelSelect option').evaluateAll(items => items.map(item => item.value))) course.push({ series, value });
+    }
+    assert.equal(course.length, 19);
+    for (let i = 0; i < course.length; i++) {
+      const { series, value } = course[i];
+      await page.selectOption('#seriesSelect', series);
+      await page.selectOption('#levelSelect', value);
       if (i === 0) {
         await page.evaluate(() => {
           const block = __mltt.workspace.newBlock('tt_zero'); block.initSvg(); block.render(); block.moveBy(120, 450);
@@ -131,6 +139,7 @@ const { chromium } = require('playwright');
       assert.equal(await page.locator('.solution-dialog').count(), 0);
     }
 
+    await page.selectOption('#seriesSelect', 'journey');
     await page.selectOption('#levelSelect', '0');
     const draft = await page.evaluate(() => {
       const block = __mltt.workspace.newBlock('tt_zero'); block.initSvg(); block.render(); block.moveBy(150, 430); return block.id;
@@ -156,9 +165,10 @@ const { chromium } = require('playwright');
     assert(await page.evaluate(id => !!__mltt.workspace.getBlockById(id), draft), 'Mode switching must save original work, not the displayed answer');
     await page.click('#viewAnswerBtn'); await page.selectOption('#levelSelect', '1');
     assert.equal(await page.locator('#viewAnswerBtn').textContent(), 'View answer');
-    await page.selectOption('#languageSelect', 'zh-CN');
+    await chooseLanguage(page, 'zh-CN');
     await page.click('#viewAnswerBtn'); assert.equal(await page.locator('#viewAnswerBtn').textContent(), '返回作答');
     await page.setViewportSize({ width: 320, height: 800 });
+    await page.locator('.workshop-details > summary').click();
     const button = await page.locator('#viewAnswerBtn').boundingBox(); assert(button.x >= 0 && button.x + button.width <= 320);
     await page.screenshot({ path: path.join(require('node:os').tmpdir(), 'mltt-reference-answer.png') });
     assert.deepEqual(errors, []);

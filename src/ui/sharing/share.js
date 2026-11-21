@@ -166,7 +166,7 @@ export function createSharing({ exportSession, importSession, button, locale, st
     try {
       const session = await exportSession(), url = new URL(location.href);
       if (session.mode === 'level') {
-        if (session.version !== 1 || !/^(?:L|R)\d+$/.test(session.levelId || '')) throw new ShareError('invalid');
+        if (session.version !== 1 || !/^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(session.levelId || '')) throw new ShareError('invalid');
         url.searchParams.set('level', session.levelId);
       } else url.searchParams.delete('level');
       if (session.mode === 'level' && short) url.hash = '';
@@ -204,7 +204,7 @@ export function createSharing({ exportSession, importSession, button, locale, st
       try { await navigator.clipboard.writeText(url); copied = true; } catch (_) { /* Provide a selectable link. */ }
       if (!copied) showLink(url, short ? 'level' : 'custom');
       const key = short ? (copied ? 'copiedLevel' : 'fallbackLevel') : (copied ? 'copied' : 'fallback');
-      status(word(key), copied ? 'ok' : 'idle');
+      status(word(key), copied ? 'ok' : 'notice');
       return url;
     } catch (error) {
       report(error, 'shareFailed');
@@ -229,7 +229,7 @@ export function createSharing({ exportSession, importSession, button, locale, st
         let session;
         if (encoded !== null) session = await decodeSession(encoded);
         else {
-          if (!/^(?:L|R)\d+$/.test(levelId)) throw new ShareError('invalid');
+          if (!/^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(levelId)) throw new ShareError('invalid');
           session = { version: 1, mode: 'level', levelId };
         }
         if (thisRevision !== revision || destroyed) return false;

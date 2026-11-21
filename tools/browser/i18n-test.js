@@ -96,11 +96,13 @@ for (const key of Object.keys(errorMessages.en)) {
     });
     await page.click('#checkBtn');
     assert.match(await page.textContent('#status'), /类型正确/);
-    const progress = await page.evaluate(() => localStorage.getItem('mltt.progress.v1'));
+    const progressKey = await page.evaluate(() => Object.keys(localStorage).find(key => key.startsWith('mltt.') && key.endsWith('.progress')));
+    assert(progressKey, 'Progress must use a version-specific storage key');
+    const progress = await page.evaluate(key => localStorage.getItem(key), progressKey);
     await page.selectOption('#languageSelect', 'en');
     assert.match(await page.textContent('#status'), /Correct type/);
     assert.match(await page.textContent('#winText'), /Correct type/);
-    assert.equal(await page.evaluate(() => localStorage.getItem('mltt.progress.v1')), progress);
+    assert.equal(await page.evaluate(key => localStorage.getItem(key), progressKey), progress);
     await page.selectOption('#languageSelect', 'zh-CN');
     await page.evaluate(() => __mltt.check());
     assert.match(await page.textContent('#status'), /类型正确/);
@@ -110,7 +112,7 @@ for (const key of Object.keys(errorMessages.en)) {
       __mltt.workspace.getBlocksByType('tt_lam').some(block => block.ttBinds.BODY[0] === uid), before.uid);
     assert.equal(await page.getAttribute('html', 'lang'), 'zh-CN');
     assert.equal(await page.inputValue('#levelSelect'), '1');
-    assert.equal(await page.evaluate(() => localStorage.getItem('mltt.progress.v1')), progress);
+    assert.equal(await page.evaluate(key => localStorage.getItem(key), progressKey), progress);
     const exposedLevels = await page.locator('#levelSelect option').count();
     for (let i = 0; i < exposedLevels; i++) {
       await page.selectOption('#levelSelect', String(i));

@@ -294,7 +294,20 @@ Blockly media requests. It starts and closes its own Vite server.
 
 ## GitHub Pages
 
-The `CI and GitHub Pages` workflow checks every push and pull request: clean dependency installation, ESLint, all checker regressions, production build, and a Chromium regression against the built application. Successful builds on `main` publish `dist/` through the `github-pages` environment. Other branches and pull requests run checks without deploying.
+The `CI and versioned releases` workflow checks pushes, pull requests, and manual runs: dependency installation, ESLint, core tests, release archive tests, a production build, and browser regressions at the actual versioned subpath. The first release is **0.0.1**.
+
+Successful runs on `main` publish the tested build as `v<package.json version>` on GitHub Releases, with `mltt-workshop-<version>.tar.gz` and a checksum/commit manifest. They then assemble **every published release** into one Pages site:
+
+- `/v/0.0.1/`, `/v/0.0.2/`, ... contain independent, fixed application builds and all their resources.
+- The project root redirects to the newest stable release (or the newest prerelease when no stable version exists). Old unversioned query strings and hashes are discarded.
+- `versions.json` lists the versions the site serves. Share links retain their `/v/<version>/` path, for both preset levels and compressed custom sessions.
+- Drafts, notes, progress, and the selected mode use version-specific local storage. Development storage is separate; the language preference is shared.
+
+To publish an update, run `npm version patch --no-git-tag-version` (or set a desired SemVer version), commit both package manifests, and push to `main`. CI creates the tag from the exact tested commit. **Keeping the same version runs checks but reuses the previously published build; it does not replace that release.** A new version must be above all published versions. Prereleases such as `0.0.2-beta.1` are supported.
+
+Publishing first creates a draft and uploads its archive before making it public. An interrupted draft can be repaired by rerunning its original workflow. Once published, version assets are never overwritten. If only Pages deployment failed, rerunning reuses the release archives and rebuilds the complete site. Missing or corrupted archives stop deployment rather than silently dropping a historical version.
+
+`npm run test:release` checks release policy, interrupted drafts, checksums, and multi-version assembly. `npm run test:release:ui` builds two independent test versions, verifies the root redirect and versioned share reload, and checks that their saved drafts remain separate.
 
 A repository administrator must enable **Settings → Pages → Build and deployment → Source: GitHub Actions** before the first deployment. Private repositories also need a GitHub plan that supports Pages. The workflow can be started again from Actions with **Run workflow** after enabling Pages. No repository visibility changes or personal access token secrets are required.
 

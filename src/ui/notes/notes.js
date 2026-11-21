@@ -1,4 +1,5 @@
 import './notes.css';
+import { versionedStorageKey } from '../version.js';
 import { TUTORIALS } from './tutorials.js';
 import { ANSWER_TUTORIALS } from './answer-tutorials.js';
 
@@ -15,7 +16,7 @@ export function createNotes({ workspace, host, locale, getLevel, getAnswer, onCh
   const cards = new Map();
   let items = [], levelId = null, paused = false, destroyed = false;
   const text = key => (WORDS[locale()] || WORDS.en)[key];
-  const storageKey = id => 'mltt.notes.v1.' + id;
+  const storageKey = id => versionedStorageKey('notes.' + id);
   const uid = () => globalThis.crypto?.randomUUID?.() || 'note-' + Date.now() + '-' + Math.random().toString(36).slice(2);
   const blockFor = note => {
     if (note.anchor !== 'answer') return workspace.getBlockById(note.blockId);

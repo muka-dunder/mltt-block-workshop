@@ -8,10 +8,12 @@ const mediaRoot = join(dirname(require.resolve('blockly')), 'media');
 const mediaFiles = readdirSync(mediaRoot);
 const lexicalNotices = `${require.resolve('@mit-app-inventor/blockly-block-lexical-variables/core')}.LICENSE.txt`;
 const contentTypes = { '.png': 'image/png', '.gif': 'image/gif', '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.ogg': 'audio/ogg' };
+const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
 
 export default defineConfig({
   base: './',
   publicDir: false,
+  define: { __APP_VERSION__: JSON.stringify(version) },
   plugins: [{
     name: 'blockly-media',
     configureServer(server) {
@@ -25,6 +27,7 @@ export default defineConfig({
       });
     },
     generateBundle() {
+      this.emitFile({ type: 'asset', fileName: 'build.json', source: JSON.stringify({ version, commit: process.env.GITHUB_SHA || null }) + '\n' });
       this.emitFile({ type: 'asset', fileName: 'licenses/lexical-variables.txt', source: readFileSync(lexicalNotices) });
       for (const name of mediaFiles) {
         this.emitFile({ type: 'asset', fileName: `media/${name}`, source: readFileSync(join(mediaRoot, name)) });

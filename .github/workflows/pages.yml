@@ -1,7 +1,8 @@
-name: CI and GitHub Pages
+name: CI and versioned releases
 
 on:
   push:
+    branches: ['**']
   pull_request:
   workflow_dispatch:
 
@@ -9,14 +10,17 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-pages-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  group: ci-release-${{ github.ref }}
+  queue: max
+  cancel-in-progress: false
 
 jobs:
   build:
     name: Check and build
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -25,12 +29,17 @@ jobs:
         with:
           node-version: 24
           cache: npm
+      - name: Read release version
+        id: version
+        run: node tools/release/version.mjs
       - name: Install dependencies
         run: npm ci
       - name: Lint
         run: npm run lint
       - name: Check types and rules
         run: npm run test:all
+      - name: Check release assembly and policies
+        run: npm run test:release
       - name: Build site
         run: npm run build
       - name: Install Chromium
@@ -39,29 +48,60 @@ jobs:
         run: npm run test:ui
         env:
           MLTT_TEST_BUILD: '1'
-          MLTT_TEST_BASE: /${{ github.event.repository.name }}/
-      - name: Upload Pages artifact
+          MLTT_TEST_BASE: /${{ github.event.repository.name }}/v/${{ steps.version.outputs.version }}/
+      - name: Check versioned sharing and storage
+        run: npm run test:release:ui
+      - name: Upload the tested build
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
+          name: tested-site
           path: dist
+          retention-days: 7
+          if-no-files-found: error
 
   deploy:
-    name: Publish GitHub Pages
+    name: Publish release and all versions
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     needs: build
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 15
     permissions:
-      contents: read
+      contents: write
       pages: write
       id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      - name: Check out the tested commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - name: Download the tested build
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: tested-site
+          path: dist
+      - name: Publish or reuse the version archive
+        run: node tools/release/publish.mjs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ needs.build.outputs.version }}
+      - name: Assemble all published versions
+        run: node tools/release/assemble.mjs
+        env:
+          GH_TOKEN: ${{ github.token }}
       - name: Configure Pages
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+      - name: Upload the complete versioned site
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: site
       - name: Deploy site
         id: deployment
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

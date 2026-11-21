@@ -1,8 +1,9 @@
 import './custom-mode.css';
+import { versionedStorageKey } from '../version.js';
 
-const STORAGE = 'mltt.custom.workspace.v1';
-const MODE = 'mltt.workspace.mode.v1';
-const LEVEL_STORAGE = 'mltt.level.workspace.v1';
+const STORAGE = versionedStorageKey('custom.workspace');
+const MODE = versionedStorageKey('workspace.mode');
+const LEVEL_STORAGE = versionedStorageKey('level.workspace');
 
 export function configureLevelGlobals(level, contextLines, inferContext) {
   const M = window.MLTT;

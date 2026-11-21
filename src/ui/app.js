@@ -1,5 +1,6 @@
 /* Game shell: Blockly workspace, levels, checking, progress. */
 import { createNotes } from './notes/notes.js';
+import { APP_VERSION, versionedStorageKey } from './version.js';
 import { installPointerZoom } from './workspace/pointer-zoom.js';
 import { createWorkshop, wt } from './workspace/workshop.js';
 import { makeTheme, toJson, createVariableTools } from './workspace/workspace-tools.js';
@@ -18,7 +19,7 @@ import { createAnswerPreview } from './problems/solutions.js';
   let LEVELS = exposedLevels();
   let statusRenderer = null;
 
-  const STORE = 'mltt.progress.v1';
+  const STORE = versionedStorageKey('progress');
   const state = {
     index: 0,
     level: null,
@@ -41,8 +42,8 @@ import { createAnswerPreview } from './problems/solutions.js';
 
   // ---------- Utilities ----------
   function renderLanguage() {
-    document.title = 'MLTT ' + t('brand');
-    $('.brand span').textContent = t('brand');
+    document.title = 'MLTT ' + t('brand') + ' · v' + APP_VERSION;
+    $('.brand span').textContent = t('brand') + ' · v' + APP_VERSION;
     for (const [id, key] of Object.entries({ checkBtn: 'check', viewAnswerBtn: 'viewAnswer', resetBtn: 'reset', winClose: 'stay' })) {
       $('#' + id).textContent = t(key);
     }

@@ -3,3 +3,6 @@ tools/**/*.png
 .DS_Store
 *.log
 dist/
+site/
+release-files/
+release-archives/

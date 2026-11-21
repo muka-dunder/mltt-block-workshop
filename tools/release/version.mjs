@@ -26,10 +26,18 @@ export function compareVersions(a, b) {
   }
   return Math.sign(preA.length - preB.length);
 }
-export const releaseNames = version => {
+export const releaseNames = (version, legacy = false) => {
   validateVersion(version);
-  return { archive: `mltt-workshop-${version}.tar.gz`, metadata: `mltt-workshop-${version}.json` };
+  return { archive: `mltt-workshop-${version}.${legacy ? 'tar.gz' : 'zip'}`, metadata: `mltt-workshop-${version}.json` };
 };
+export function publishedNames(release) {
+  const version = releaseVersion(release), assets = release.assets || [];
+  for (const legacy of [false, true]) {
+    const names = releaseNames(version, legacy);
+    if (Object.values(names).every(name => assets.some(asset => asset.name === name))) return names;
+  }
+  throw new Error('Published release is missing its site archive: ' + version);
+}
 export function releaseVersion(release) {
   if (!release.tag_name?.startsWith('v')) return null;
   try { return validateVersion(release.tag_name?.replace(/^v/, '')); } catch { return null; }
@@ -38,8 +46,7 @@ export function releaseDecision(version, releases) {
   validateVersion(version);
   const existing = releases.find(release => release.tag_name === 'v' + version);
   if (existing && !existing.draft) {
-    const required = Object.values(releaseNames(version));
-    if (!required.every(name => existing.assets.some(asset => asset.name === name))) throw new Error('Published release is missing its site archive: ' + version);
+    publishedNames(existing);
     return 'reuse';
   }
   const published = releases.filter(release => !release.draft).map(releaseVersion).filter(Boolean);

@@ -9,7 +9,7 @@ import './ui/style.css';
 window.Blockly = Blockly;
 window.LexicalVariablesPlugin = LexicalVariablesPlugin;
 window.BLOCKLY_MESSAGES = { en, 'zh-CN': zhCN };
-window.BLOCKLY_MEDIA = `${import.meta.env.BASE_URL}media/`;
+window.BLOCKLY_MEDIA = window.MLTT_MEDIA_PATH || `${import.meta.env.BASE_URL}media/`;
 
 async function start() {
   await import('./i18n/locales/blocks.js');

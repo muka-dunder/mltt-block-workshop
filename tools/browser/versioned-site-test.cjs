@@ -4,11 +4,12 @@ const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 const http = require('node:http');
+const { pathToFileURL } = require('node:url');
 const { chromium } = require('playwright');
 
 (async () => {
   const { build } = await import('vite');
-  const { packSite } = await import('../release/archive.mjs');
+  const { packSite, unpackSite } = await import('../release/archive.mjs');
   const { assembleSite } = await import('../release/assemble.mjs');
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'mltt-version-browser-'));
   let browser, server;
@@ -17,11 +18,15 @@ const { chromium } = require('playwright');
     for (const version of ['0.0.1', '0.0.2']) {
       const dist = path.join(temp, 'build-' + version);
       await build({ root: path.resolve(__dirname, '../..'), logLevel: 'silent',
-        define: { __APP_VERSION__: JSON.stringify(version) }, build: { outDir: dist } });
+        build: { outDir: dist } });
+      const index = path.join(dist, 'index.html');
+      fs.writeFileSync(index, fs.readFileSync(index, 'utf8').replace(/window.MLTT_APP_VERSION="[^"]+"/, 'window.MLTT_APP_VERSION=' + JSON.stringify(version)));
       fs.writeFileSync(path.join(dist, 'build.json'), JSON.stringify({ version, commit }));
       packSite({ dist, out: archives, version, commit });
     }
     assembleSite({ archives, out: site });
+    assert.equal(fs.readdirSync(path.join(site, 'shared/assets')).length, 3, 'Identical builds share vendor, application and styles');
+    assert.equal(fs.readdirSync(path.join(site, 'shared/media')).length, 1, 'Versions share identical Blockly media');
     server = http.createServer((request, response) => {
       const url = new URL(request.url, 'http://localhost');
       let name;
@@ -37,6 +42,7 @@ const { chromium } = require('playwright');
     browser = await chromium.launch(process.env.PLAYWRIGHT_CHANNEL ? { channel: process.env.PLAYWRIGHT_CHANNEL } : {});
     const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } }), errors = [];
     page.on('pageerror', error => errors.push(error.message));
+    page.on('response', response => { if (response.status() >= 400 && !response.url().endsWith('/favicon.ico')) errors.push('HTTP ' + response.status() + ': ' + response.url()); });
     const base = `http://127.0.0.1:${server.address().port}/workshop/`;
     await page.goto(base + '?level=L13#workshop=discard-old-payload');
     await page.waitForFunction(() => window.__mltt?.workspace);
@@ -61,8 +67,46 @@ const { chromium } = require('playwright');
     await page.goto(first.url); await page.waitForFunction(id => !!window.__mltt?.workspace.getBlockById(id), first.id);
     assert.equal(await page.evaluate(id => !!__mltt.workspace.getBlockById(id), second.id), false);
     assert((await page.title()).includes('v0.0.1'));
+    const offline = path.join(temp, '离线 game with spaces');
+    unpackSite({ archive: path.join(archives, 'mltt-workshop-0.0.1.zip'), metadata: path.join(archives, 'mltt-workshop-0.0.1.json'), out: offline, version: '0.0.1' });
+    const local = await browser.newPage(), localErrors = [], network = [];
+    local.on('pageerror', error => localErrors.push(error.message));
+    local.on('request', request => { if (/^https?:/.test(request.url())) network.push(request.url()); });
+    await local.goto(pathToFileURL(path.join(offline, 'index.html')).href);
+    await local.waitForFunction(() => window.__mltt?.answerPreview);
+    assert((await local.title()).includes('v0.0.1'));
+    const levels = await local.locator('#levelSelect option').count();
+    for (let i = 0; i < levels; i++) {
+      await local.selectOption('#levelSelect', String(i));
+      await local.click('#viewAnswerBtn');
+      await local.waitForFunction(() => __mltt.answerPreview.active);
+      await local.evaluate(() => __mltt.check());
+      assert(await local.locator('#status').evaluate(element => element.classList.contains('ok')), 'Offline answer checks for level ' + i);
+      await local.click('#viewAnswerBtn');
+      await local.waitForFunction(() => !__mltt.answerPreview.active);
+    }
+    await local.selectOption('#modeSelect', 'custom');
+    const offlineId = await local.evaluate(() => {
+      const block = __mltt.workspace.newBlock('tt_zero'); block.initSvg(); block.render(); return block.id;
+    });
+    await local.waitForFunction(id => (localStorage.getItem('mltt.0.0.1.custom.workspace') || '').includes(id) && location.hash.startsWith('#workshop='), offlineId);
+    const offlineUrl = local.url();
+    await local.goto(offlineUrl);
+    await local.waitForFunction(id => !!window.__mltt?.workspace.getBlockById(id), offlineId);
+    await local.selectOption('#languageSelect', 'zh-CN');
+    const link = local.locator('.github-link');
+    assert.equal(await link.getAttribute('href'), 'https://github.com/muka-dunder/mltt-block-workshop');
+    for (const width of [1440, 1000, 390]) {
+      await local.setViewportSize({ width, height: 900 });
+      assert(await local.evaluate(() => {
+        const link = document.querySelector('.github-link').getBoundingClientRect(), reset = document.querySelector('#resetBtn').getBoundingClientRect();
+        return link.left >= reset.right && link.right <= innerWidth;
+      }), 'GitHub stays to the right of Reset at ' + width);
+    }
+    assert.deepEqual(localErrors, []);
+    assert.deepEqual(network, [], 'Offline ZIP must not request a server or CDN');
     assert.deepEqual(errors, []);
-    console.log('PASS: unversioned redirect, discarded legacy payloads, versioned resource paths, direct share reload and isolated draft storage');
+    console.log('PASS: versioned sharing/storage, shared assets, offline ZIP file:// play/check/restore/language and GitHub layout');
   } finally {
     if (browser) await browser.close();
     if (server) await new Promise(resolve => server.close(resolve));

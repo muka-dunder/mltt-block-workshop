@@ -34,7 +34,7 @@
 1. 读取版本号，安装依赖，运行 ESLint、核心测试、发布脚本测试和浏览器测试，构建应用。
 2. 将通过检查的构建产物传给发布任务，使用同一个提交的 SHA 创建 `v<版本号>` 标签和 GitHub Release。
 3. 先创建 Release 草稿，上传归档和校验信息，再公开该 Release。
-4. 下载所有已发布版本的归档，分别放入 `/v/<版本号>/`，生成根目录跳转页和 `versions.json`。
+4. 下载所有已发布版本的归档，为相同资源去重，生成各版本页面、根目录跳转页和 `versions.json`。
 5. 将包含全部版本的站点部署到 GitHub Pages。
 
 站点上传和 Pages 部署分属两个 CI 任务，部署任务在上传任务完成后启动，减少上传成功后立即查询却找不到文件的问题。每次上传的名称包含运行编号和尝试次数，部署任务通过前一个任务的输出读取名称，重跑部署时仍使用对应的文件。
@@ -43,12 +43,30 @@
 
 | 附件 | 内容 |
 | --- | --- |
-| `mltt-workshop-0.0.1.tar.gz` | 该版本的完整应用及资源 |
-| `mltt-workshop-0.0.1.json` | 版本号、提交 SHA、归档文件名和 SHA-256 校验值 |
+| `mltt-workshop-0.0.3.zip` | 该版本的完整应用及资源，可解压后双击运行 |
+| `mltt-workshop-0.0.3.json` | 版本号、提交 SHA、归档文件名和 SHA-256 校验值 |
+
+从 `0.0.3` 开始使用 ZIP。已经发布的 `0.0.1`、`0.0.2` 保留原有 tar.gz 附件，组装脚本继续读取它们，不修改历史归档。
 
 已公开的版本不会被后续运行覆盖。相同版本再次运行 CI 时会复用已发布的归档，因此只修改代码、保持版本号不变，线上仍使用该版本原来的内容。新发布的版本号必须高于所有已发布版本。
 
 Pages 每次部署都重新包含全部历史版本。请保留已发布的 Release 和附件；删除它们会影响历史地址，缺失或损坏的归档会让部署失败。
+
+## 空间与公共资源
+
+GitHub Releases 保存完整归档，保证每个 ZIP 都能独立使用。Pages 在组装新版页面时，将内容相同的脚本和样式按 SHA-256 放到 `/shared/assets/`，将相同的 Blockly 媒体目录放到 `/shared/media/`；各版本页面引用对应哈希地址。
+
+Blockly 等依赖独立打包，应用代码、样式和媒体分别比较。只修改游戏时可以继续共用依赖文件；修改资源后会生成新的哈希地址，旧页面仍指向旧内容。版本号写入各版本的 HTML，单纯升版也能共用脚本。原有模块式构建的历史版本保留完整目录。
+
+CI 用于任务间传递构建文件的附件保留 7 天，Pages 上传附件保留 1 天，到期自动清理。Release 附件长期保留，历史站点每次从这些附件重建。版本越多仍会增加空间，节省的是重复的公共资源。
+
+## 离线 ZIP
+
+下载 Release ZIP，完整解压后，用较新的 Chrome 或 Edge 打开 `index.html`，无需启动服务器，也无需连接 CDN。题目、检查、答案预览、注释和语言切换都在本地执行。源码开发仍通过 Vite 服务器运行。
+
+本地也可以执行 `npm run package:zip`，生成 `release-files/mltt-workshop-<版本号>.zip`。该命令拒绝覆盖同名 ZIP，再次打包前需自行移走原文件。
+
+离线局面的 URL 是本机文件地址，可以在本机恢复。发给其他人时，应使用线上对应版本的分享链接。浏览器对本地文件存储的处理可能不同，离线版本目前通过 Chrome/Edge 的浏览器测试。
 
 ## 发布一个新版本
 
@@ -92,7 +110,7 @@ npm run test:release
 npm run test:release:ui
 ```
 
-前者检查版本比较、发布策略、草稿续传、校验值和多版本组装；后者实际构建两个版本，在浏览器中检查根地址跳转、分享链接恢复和本地数据隔离。
+前者检查版本比较、发布策略、草稿续传、校验值和多版本组装；后者实际构建两个版本，检查公共资源去重、根地址跳转、分享链接恢复、本地数据隔离，以及解压 ZIP 后通过 `file://` 玩题、检查和恢复局面。
 
 | 文件 | 职责 |
 | --- | --- |
@@ -100,5 +118,7 @@ npm run test:release:ui
 | [tools/release/publish.mjs](../tools/release/publish.mjs) | 发布通过检查的构建产物 |
 | [tools/release/archive.mjs](../tools/release/archive.mjs) | 打包、校验和解包归档 |
 | [tools/release/assemble.mjs](../tools/release/assemble.mjs) | 组装全部历史版本和根目录跳转页 |
+| [tools/release/shared.mjs](../tools/release/shared.mjs) | 为 Pages 的相同资源去重，保持内容哈希地址 |
+| [tools/release/package.mjs](../tools/release/package.mjs) | 在本地生成可独立使用的 ZIP |
 | [src/ui/version.js](../src/ui/version.js) | 提供应用版本号与本地存储键 |
 | [vite.config.mjs](../vite.config.mjs) | 注入版本号，生成构建信息，使用相对资源路径 |

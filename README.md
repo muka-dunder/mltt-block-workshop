@@ -12,11 +12,12 @@ npm start
 
 Requires Node.js 18.18+, 20.9+, or 22 and later. Use `npm run dev` for the same development
 server, or `npm start -- --port 8080` to choose another port. Open the app through
-HTTP; the source HTML uses module imports and cannot be opened directly via `file://`.
+HTTP during development; the source HTML uses module imports. Production builds also work directly via `file://`.
 
 ```bash
 npm run build     # generate the standalone static site in dist/
 npm run preview   # serve dist/ locally at http://localhost:8000
+npm run package:zip # build an offline ZIP in release-files/
 ```
 
 Blockly 11.2.2 and the lexical-variable plugin 11.0.3 are pinned npm dependencies.
@@ -24,6 +25,13 @@ Commit `package-lock.json`; use `npm ci` for reproducible installs. Blockly medi
 is served from the installed package in development and copied into `dist/media/`
 at build time. The output loads its assets locally and needs no CDN. `node_modules/`
 and `dist/` are generated and stay out of Git.
+
+Starting with 0.0.3, download the ZIP from GitHub Releases, extract **all** files,
+and double-click `index.html` in a recent Chrome or Edge. Playing, checking,
+answer previews, notes, language switching and local session restoration work
+without a server or internet connection. The built scripts use classic bundles
+instead of browser module imports. Local `file://` links refer to files on your
+computer; use the hosted version's Share button for links to send to others.
 
 Use the header language selector to switch between English and Simplified Chinese.
 The initial language follows the browser; later visits use your saved choice.
@@ -296,12 +304,20 @@ Blockly media requests. It starts and closes its own Vite server.
 
 The `CI and versioned releases` workflow checks pushes, pull requests, and manual runs: dependency installation, ESLint, core tests, release archive tests, a production build, and browser regressions at the actual versioned subpath. The first release is **0.0.1**.
 
-Successful runs on `main` publish the tested build as `v<package.json version>` on GitHub Releases, with `mltt-workshop-<version>.tar.gz` and a checksum/commit manifest. They then assemble **every published release** into one Pages site:
+Successful runs on `main` publish the tested build as `v<package.json version>` on GitHub Releases, with `mltt-workshop-<version>.zip` and a checksum/commit manifest. Versions 0.0.1 and 0.0.2 retain their original tar.gz archives. They then assemble **every published release** into one Pages site:
 
-- `/v/0.0.1/`, `/v/0.0.2/`, ... contain independent, fixed application builds and all their resources.
+- `/v/0.0.1/`, `/v/0.0.2/`, ... select independent, fixed builds, referencing their exact resources.
 - The project root redirects to the newest stable release (or the newest prerelease when no stable version exists). Old unversioned query strings and hashes are discarded.
 - `versions.json` lists the versions the site serves. Share links retain their `/v/<version>/` path, for both preset levels and compressed custom sessions.
 - Drafts, notes, progress, and the selected mode use version-specific local storage. Development storage is separate; the language preference is shared.
+
+New portable builds share identical scripts and styles by SHA-256 under `/shared/assets/`,
+and identical Blockly media directories under `/shared/media/`. Blockly dependencies
+are bundled separately from application code, so game changes can reuse the large
+dependency bundle. Shared paths contain content hashes and are never replaced by
+a different version's content. Release ZIPs remain complete and independent.
+CI's tested-build artifacts expire after 7 days, and the Pages artifact after 1 day;
+published Release archives remain available for rebuilding historical versions.
 
 To publish an update, run `npm version patch --no-git-tag-version` (or set a desired SemVer version), commit both package manifests, and push to `main`. CI creates the tag from the exact tested commit. **Keeping the same version runs checks but reuses the previously published build; it does not replace that release.** A new version must be above all published versions. Prereleases such as `0.0.2-beta.1` are supported.
 

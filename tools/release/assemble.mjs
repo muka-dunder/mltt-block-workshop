@@ -2,7 +2,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { unpackSite } from './archive.mjs';
-import { compareVersions, releaseNames, releaseVersion } from './version.mjs';
+import { compareVersions, releaseNames, releaseVersion, publishedNames } from './version.mjs';
+import { shareResources } from './shared.mjs';
 import { gh, listReleases, repository } from './github.mjs';
 
 export function assembleSite({ archives, out }) {
@@ -15,9 +16,12 @@ export function assembleSite({ archives, out }) {
   if (!versions.length) throw new Error('No published site releases found');
   fs.mkdirSync(out, { recursive: true });
   for (const version of versions) {
-    const names = releaseNames(version);
-    unpackSite({ archive: path.join(archives, names.archive), metadata: path.join(archives, names.metadata),
+    const names = releaseNames(version), metadata = path.join(archives, names.metadata);
+    const record = JSON.parse(fs.readFileSync(metadata, 'utf8'));
+    if (![names.archive, releaseNames(version, true).archive].includes(record.archive)) throw new Error('Invalid archive filename');
+    unpackSite({ archive: path.join(archives, record.archive), metadata,
       out: path.join(out, 'v', version), version });
+    shareResources(path.join(out, 'v', version), out);
   }
   const latest = versions.find(version => !version.includes('-')) || versions[0];
   const target = './v/' + latest + '/';
@@ -36,8 +40,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   fs.mkdirSync(archives, { recursive: true });
   for (const release of listReleases(repo).filter(release => !release.draft)) {
     const version = releaseVersion(release); if (!version) continue;
-    const names = Object.values(releaseNames(version));
-    if (!names.every(name => release.assets.some(asset => asset.name === name))) throw new Error('Published release is incomplete: ' + release.tag_name);
+    const names = Object.values(publishedNames(release));
     gh(['release', 'download', release.tag_name, '--repo', repo, '--dir', archives, ...names.flatMap(name => ['--pattern', name])]);
   }
   console.log(JSON.stringify(assembleSite({ archives, out: path.resolve('site') })));

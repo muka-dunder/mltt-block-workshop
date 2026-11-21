@@ -1,231 +1,337 @@
 // Worked reasoning shown while a reference answer is on the canvas.
 export const ANSWER_TUTORIALS = {
   L0: {
-    'zh-CN': `读题时，冒号表示“具有这个类型”。x : A 告诉你，已经有一个叫 x 的项，它的类型是 A。题目只有一个提交入口，里面的判断卡要求你构造一个类型为 A 的项。
+    'zh-CN': `现在画布上已经放好了标准答案：答案槽里只有一个积木 x。让我们一步步顺着类型检查器的思路，看看为什么这么填就通过了。
 
-从左侧的已知符号里拖出 x，把它接到答案槽里，再点击“检查”。这关直接使用题目给出的条件就够了，无须创建新假设。
+1. 先看题目要什么：判断卡下方写着“? : A”，意思是冒号左边必须填入一个“具有类型 A 的项”。
+2. 再看条件区有什么：顶部以符号 Γ（Gamma，表示“上下文 / 已知条件”）开头，紧接着声明了 A : Type 0（A 是一个类型）和 x : A（x 是已经存在的一个项，它的类型恰好就是 A）。
+3. 为什么直接放 x 就行？因为题目已经把现成的 x : A 交到了你的手边，不需要额外加工。从左侧已知符号区把 x 拖进答案槽，点击“检查”，判断就变成了 x : A——完全符合要求！
 
-A 是类型的名字，x 是这个类型里的一个项，两者用途不同。引用 x 会保留它与题目中声明的关联；以后同样可以通过引用来使用函数、类型和局部变量。`,
-    en: `A colon means “has type”. The declaration x : A gives you a term named x whose type is A. The judgment fixes the type A and asks you to fill its term position.
+你可以试着点击答案槽里的 x，观察下方的类型提示。记住一个关键区别：A 是“类型标签”，x 才是属于 A 的“具体对象”。如果错把 A 填进去，检查器就会报错，因为 A 的类型是 Type，而不是 A 自己。`,
+    en: `The reference answer is now on the canvas: just the single block x inside the answer slot. Let's trace step by step why this solves the puzzle.
 
-Drag x from the given symbols on the left into the answer slot, then press Check. The supplied context already contains everything you need, so no new assumption is needed.
+1. Read what the goal asks for: the bottom of the judgment card reads “? : A”, meaning the slot on the left of the colon needs a term of type A.
+2. Check what the context supplies: at the top, introduced by Γ (Gamma, standing for the “context” of known assumptions), A : Type 0 tells us A is a type, and x : A gives us a ready-made term named x whose type is already A.
+3. Put them together: because we already have an object of type A in hand, we don't need to build anything new. Dragging x from the given symbols on the left into the answer slot turns the judgment into x : A, which checks immediately.
 
-A names a type, while x names a term of that type. A reference to x remains linked to its declaration. The same reference mechanism will let you use functions, types, and local variables in later levels.`
+Try clicking the x block on the canvas to inspect its type. Notice the key distinction: A is the name of the category (a type), while x is the concrete item belonging to it (a term). Putting A into the term slot would fail, because A has type Type, not type A.`
   },
   L1: {
-    'zh-CN': `目标 A → A 表示：接收一个 A 类型的输入，返回一个 A 类型的结果。题目暂时没有给你 A 类型的值；要获得输入，就需要构造一个函数。
+    'zh-CN': `画布上展示的答案是 λx. x——这就是大名鼎鼎的“恒等函数（Identity Function）”。一步步来看它是怎么满足目标 A → A 的：
 
-把 λ 积木放进答案槽。它会引入局部变量 x，左侧随即出现对应的 x 积木。把这个 x 拖进 λ 的函数体，得到 λx. x，然后检查。
+1. 为什么一定要用 λ？题目条件里只给了类型 A，一个 A 类型的项都没给，我们不可能无中生有。但目标类型 A → A（即 Π (x : A) → A）代表一台函数机器：“只要给我一个 A，我就还你一个 A。”用 λ 积木就能把“假设未来会收到的那个输入”先请进门来。
+2. 参数类型从哪来？当你把 λ 放进目标为 A → A 的答案槽时，类型检查器会自动推导出这个参数 x 的类型就是 A，并在 λ 内部开放一个局部变量 x。
+3. 函数体里填什么？既然我们已经拿到了输入 x : A，而机器又要求吐出一个 A 类型的结果，最直接的做法就是把收到的 x 原封不动地交出去！
 
-这个函数把收到的输入原样返回，因此无论 A 是什么类型都能成立。x 的可用范围是这个 λ 的函数体；把它放到函数外面时，系统会指出它超出了作用域。`,
-    en: `The goal A → A asks for a function that accepts an input of type A and returns a result of type A. No particular A has been supplied as a value; constructing a function gives you access to its input.
+于是就组成了 λx. x：“收到什么，就返回什么”。顺便留意作用域规则：这个 x 只在 λ 的函数体里面有效；如果你把 x 拖到 λ 外面，它立刻就会失效，因为离开机器内部就再也看不见这个局部参数了。`,
+    en: `The answer on the canvas is λx. x—the famous “identity function”. Let's walk through how each piece satisfies the goal A → A:
 
-Put a λ block in the answer slot. It introduces the local variable x, whose reference appears on the left. Drag that x into the body of λ to build λx. x, then check it.
+1. Why start with λ? The context only declares the type A and gives us no elements of A. However, the goal A → A (short for Π (x : A) → A) asks for a function machine: “Give me an A, and I will return an A.” Putting a λ block in the answer slot creates that machine and gives us access to its future input.
+2. Where does x get its type? Because the goal expects A → A, the type checker automatically knows that the parameter x bound by λ must have type A, and makes x available inside the λ body.
+3. What goes in the body? Inside the body, we now have x : A in scope and need to return a term of type A—so we simply hand x straight back!
 
-This function returns its input unchanged, so it works for any type A. Its x is available inside this λ's body. Moving the reference outside that body makes it out of scope.`
+That produces λx. x: a function that returns whatever input it receives, working for any type A. Remember the scope boundary too: x only exists inside this λ's body; dragging x outside the λ makes it out of scope.`
   },
   L2: {
-    'zh-CN': `题目已经给了 x : A，目标却是 B → A：现在要构造一个接收 B、返回 A 的函数。你可以在函数内部继续使用外层给出的 x。
+    'zh-CN': `参考答案写着 λy. x。仔细看：这个函数的参数叫 y，可函数体里返回的却是 x！为什么这样完全合法呢？我们拆开来看：
 
-先把 λ 放进答案槽，把新输入命名为 y。它的类型由目标确定为 B。接着从已知符号拖出外层的 x，放进函数体，构成 λy. x。
+1. 先满足函数外形：目标类型是 B → A，它要求一台“吃进一个 B，吐出一个 A”的函数机器。所以最外层放一块 λ 积木，把新接收的参数命名为 y。根据目标类型，检查器自动确定 y : B。
+2. 走进函数体找结果：进入 λ 的函数体后，当前目标变成了“交出一个类型为 A 的项”。此时我们手头其实有两个变量可用：
+   • 刚收到的内层参数 y : B（类型不对，不是我们要的 A）；
+   • 题目顶部外层条件早就给好的 x : A（一直都在视野里，而且类型正好是 A！）。
+3. 选对变量放进去：函数完全有权忽略自己的参数 y，直接把外层可见的 x 返回出去，这就得到了常函数 λy. x（“不管你投给我什么 B，我永远只返回那个 x”）。
 
-函数的输入可以暂时用不上。这里每次收到一个 B，都会返回已有的那个 A。留意变量的来源：y 属于新函数，x 属于题目的外层条件；返回值必须符合目标中的 A。`,
-    en: `You already have x : A, and the goal is B → A: build a function that receives a B and returns an A. The outer x remains available inside the new function.
+这道题想告诉你两件事：第一，作用域是可以嵌套的，内层函数体看得到外层变量；第二，判断一个变量能不能填进去，关键看它的“类型”是否匹配目标，而不是看它是不是最新引入的那个名字。`,
+    en: `The completed answer is λy. x. Notice that the function takes a parameter named y, yet ignores it and returns x! Let's see why that works cleanly:
 
-Put λ in the answer slot and name its input y. The goal gives y type B. Drag the supplied outer x into the function body to build λy. x.
+1. Match the function shape: the goal B → A asks for a machine that accepts a B and produces an A. Placing a λ block in the answer slot introduces the input y, and the goal determines that y : B.
+2. Look around inside the body: inside the λ body, we now need to produce an A. Two variables are visible in scope here:
+   • The inner parameter y : B (wrong type—we need an A, not a B);
+   • The outer declaration x : A from the top context (still visible inside λ, and its type is A!).
+3. Return the outer variable: a function is never forced to use its input. Returning x produces the constant function λy. x—“no matter which B you give me, I always return x.”
 
-A function is allowed to leave its input unused. This one receives a B each time and returns the A you already had. Keep track of where variables come from: y belongs to the new function, and x comes from the outer context. The returned term must have type A.`
+This illustrates two lessons at once: scopes nest (inner bodies can still reach outer declarations), and choosing the right variable is always about matching the required type, not just grabbing the newest variable.`
   },
   L3: {
-    'zh-CN': `已知 f : A → B 和 x : A。函数 f 能把一个 A 变成一个 B，而目标正好要求构造一个 B。把合适的参数交给函数，就能得到需要的结果。
+    'zh-CN': `画布上的答案是应用表达式 f x。如果你曾经用过函数，这就像在写 f(x)，只是在类型论里习惯把括号省掉，用空格把函数和参数连起来。
 
-拖出应用积木，放进答案槽。应用积木有两个位置：左边放函数 f，右边放参数 x。完成的表达式是 f x，读作“把 f 应用于 x”。
+让我们对照积木的两个插槽来读一遍：
+1. 左边（函数位置）放 f：条件区告诉我们 f : A → B，也就是说 f 是一台“吃进 A、吐出 B”的机器，符合函数位置的要求。
+2. 右边（参数位置）放 x：条件区告诉我们 x : A，这正是机器 f 说明书里指明要吃的原料类型！
+3. 合起来的结果：通过“应用”积木把 x 喂给 f 后，整块 f x 产出的结果就自动拥有了类型 B，刚好命中题目的目标 B。
 
-应用时，参数的类型必须符合函数的输入要求。这里 x 具有类型 A，所以 f x 的类型是 B。函数与参数的顺序很重要；把 x 放在函数位置，就无法按这个规则进行检查。`,
-    en: `You have f : A → B and x : A. The function f turns an A into a B, exactly the type requested by the goal. Giving the function a suitable argument produces the required result.
+试试看把左右两个积木的含义记牢：函数永远在左，参数永远在右。假如不小心反过来把 x 放在左边、f 放在右边，类型检查器立刻就会拦住你，因为 x 的类型是 A，它只是一份普通原料，根本不是一台能接收参数的函数机器。`,
+    en: `The reference answer on the canvas is the application f x. If you've seen functions in math or programming, you can read this just like f(x)—in type theory we simply write the function and its argument side by side.
 
-Place an application block in the answer slot. Put the function f in its left slot and the argument x in its right slot. The resulting expression f x reads “apply f to x”.
+Let's check both slots of the application block:
+1. Left slot (function): holds f. From the context f : A → B, we know f is a function machine expecting an A and returning a B.
+2. Right slot (argument): holds x. From x : A, we know x has the exact input type that f requires.
+3. Combined result: applying f to x produces a term of type B, matching the goal B!
 
-The argument's type must match the function's input type. Since x has type A, f x has type B. The order matters: placing x in the function slot does not provide the function required by application.`
+Keeping the two positions straight is essential: the function always goes on the left, and its argument goes on the right. If you swapped them and placed x on the left, the type checker would reject it immediately, because x has type A and is not a function.`
   },
   L4: {
-    'zh-CN': `f : A → B → C 表示分两次接收参数：先给它一个 A，会得到一个 B → C 的函数；再给这个函数一个 B，才能得到目标 C。
+    'zh-CN': `参考答案看起来像套了两层壳：(f x) y，通常简写成 f x y。为什么一定要按“先包 f x，再包 y”的顺序嵌套，而不是把 x 和 y 先拼在一起呢？我们一层一层剥开来看类型变化：
 
-需要嵌套两个应用积木。内层放 f 和 x，先组成 f x；把整个内层应用放到外层的函数位置，再把 y 放到外层的参数位置，得到 (f x) y。
+1. 第一层（内层应用 f x）：
+   • 已知 f : A → B → C，也就是 A → (B → C)。
+   • 当我们用内层应用积木把 x : A 喂给 f 时，消耗掉了第一个箭头 A → ...，于是 f x 的类型变成了 B → C！
+   • 注意：此时 f x 本身变成了一台“等待输入 B、准备输出 C”的新函数机器。
+2. 第二层（外层应用 (f x) y）：
+   • 既然整块 f x 是一台类型 B → C 的函数机器，我们就可以把它放进外层应用积木左边的“函数位置”；
+   • 然后把 y : B 放进外层应用积木右边的“参数位置”；
+   • 喂入 y 后，剩下的箭头 B → C 也被消耗掉，最终得到类型 C！
 
-通常把它简写成 f x y，应用按左边先结合。不要把 x 和 y 先拼成 x y：x 只有类型 A，题目没有给它函数类型。沿着每一步的输入、输出类型看，嵌套顺序就清楚了。`,
-    en: `The type f : A → B → C describes two successive inputs. Giving f an A produces a function of type B → C; giving that function a B produces the requested C.
+你可以试着在画布上分别点选内层的 f x 和外层的 (f x) y，看看类型面板里它们各自的类型是不是从 B → C 一步步变成 C 的！这也是为什么不能先写 x y：因为 x 的类型只是 A，不是函数，根本吃不下 y。`,
+    en: `The reference answer nests two application blocks: (f x) y, usually written f x y. Let's trace the type step by step to see why the nesting has to go in this order:
 
-Nest two application blocks. The inner one contains f and x, forming f x. Put that entire application in the outer function slot, with y in the outer argument slot. This builds (f x) y.
+1. Inner application (f x):
+   • We are given f : A → B → C, which groups to the right as A → (B → C).
+   • Feeding x : A to f inside the inner application block uses up the first arrow, so the whole block f x now has type B → C.
+   • That means f x is itself a brand-new function waiting for a B!
+2. Outer application ((f x) y):
+   • Because f x has function type B → C, it fits neatly into the left (function) slot of the outer application block.
+   • We then place y : B into the right (argument) slot of the outer block, consuming the second arrow and leaving a final result of type C!
 
-We usually shorten this to f x y, with application grouping to the left. Do not first combine x and y as x y: x only has type A, and no function type for x was supplied. Follow each step's input and output types to determine the nesting.`
+Click the inner f x block and then the outer application block on the canvas to watch the type change from B → C to C. And notice why we could never combine x and y first as x y: x has type A, not a function type, so it cannot take y as an argument.`
   },
   L5: {
-    'zh-CN': `这次仍有 f : A → B → C 和 x : A，但目标变成了 B → C。题目要的结果本身就是函数，因此只需要完成 f 的第一次应用。
+    'zh-CN': `看看画布上的答案：只有一块应用积木，里面拼着 f x。比上一关还要简洁！为什么只用喂一个参数就大功告成了呢？
 
-把一个应用积木放进答案槽，函数位置放 f，参数位置放 x，得到 f x。检查时，它的类型已经是 B → C；这里无须再引入一个 B 类型的参数。
+1. 读懂条件和目标：f 的类型是 A → B → C，按右结合展开就是 A → (B → C)。而本关的目标类型恰恰就是括号里的那半截：B → C！
+2. 观察“部分应用”的威力：当你用应用积木把 x : A 喂给 f 时，f 吃掉了第一个参数 A，吐出来的返回值正好就是一个类型为 B → C 的函数！既然这已经完全符合目标要求，我们就不需要多此一举再去套一层 λ，也不用去找本来就不存在的 y。
 
-这叫部分应用：先交出一部分参数，留下的计算成为另一个函数。箭头 A → B → C 按右边结合，可以看成 A → (B → C)。因此 f x 是一个完整的函数值，也能作为完整答案提交。`,
-    en: `You still have f : A → B → C and x : A, but the goal is now B → C. The requested result is itself a function, so completing only the first application of f is enough.
+在类型论和函数式编程中，把接收多个参数的函数拆成“一次接收一个参数、并交出等待下一个参数的函数”的技巧，叫作“柯里化（Currying）”；而像 f x 这样只传了一部分参数的写法，叫作“部分应用（Partial Application）”。这说明：一个应用表达式的结果，同样可以是一台正儿八经的函数！`,
+    en: `Look at the completed answer: just a single application block forming f x—even simpler than the previous level! Why is one application already enough?
 
-Put an application block in the answer slot, with f as the function and x as the argument. The expression f x already has type B → C. There is no need to introduce a B argument here.
+1. Match the goal to the arrows: f has type A → B → C, which means A → (B → C). Meanwhile, our goal is B → C—literally the second half of f's type!
+2. Partial application in action: applying f to x : A satisfies the first input A and immediately returns a function of type B → C. Because that already matches the target type B → C, we don't need to invent a y or wrap everything in a λ.
 
-This is partial application: supplying some arguments leaves a function for the remaining inputs. Arrows group to the right, so A → B → C means A → (B → C). Thus f x is a complete function value and can be submitted as a complete answer.`
+Turning a multi-argument function into a chain of single-argument functions is called “currying”, and supplying only the first argument (as in f x) is called “partial application”. It shows that the result of applying a function doesn't have to be plain data—it can itself be another function ready for its next input!`
   },
   L6: {
-    'zh-CN': `本关的判断卡已经给出了项 f x，冒号右侧的空槽要填写这个项的类型。先看已知条件 f : A → B、x : A。
+    'zh-CN': `这关的答案简简单单，就是冒号右边的那个符号积木 B。回顾一下为什么不是再拼一次 f x，而是填 B：
 
-f 收到 A 类型的参数 x，返回值的类型就是 B。从左侧找到符号 B，直接把它放进类型空槽，再点击“检查”。因此答案里的类型槽填入 B，给定的项位置保持为 f x。
+1. 看清空槽站在冒号的哪一边：判断卡写成“Γ ⊢ f x : ?”。冒号左边（项的位置）已经被题目锁死为 f x 了；留空等待你填写的，是冒号右边（类型的位置）！也就是说，本题不是让你“构造项”，而是让你做“类型推断（Type Inference）”——回答“f x 这个表达式属于什么类型”。
+2. 动手推算一遍：条件里给出 f : A → B（吃 A 吐 B）和 x : A（刚好是个 A）。因此，把 f 应用于 x 得到的表达式 f x，它的结果类型自然就是 B。
+3. 把 B 填进类型空槽：从左侧条件区拖出类型符号 B，放到冒号右边，整个判断就成了合法的 f x : B。
 
-类型自身也能通过符号积木来引用。读题时先看空槽的位置：平常是在构造一个给定类型的项，这里则是在说明已有的项具有什么类型。目标中的 f x 已经给好，空槽中再搭一次 f x 会填错内容。`,
-    en: `The judgment already supplies the term f x; the empty TYPE slot after the colon must describe that term's type. Start with the supplied declarations f : A → B and x : A.
+这是一个特别重要的思维习惯：读每道题时，先瞄一眼空槽在冒号左边还是右边。在左边是在“造东西（写程序/写证明）”，在右边是在“报类型（写规格/写命题）”。类型自身也可以用符号积木来表示哦。`,
+    en: `The answer here is simply the symbol block B in the slot to the right of the colon. Let's check why the right answer is B rather than building f x again:
 
-Applying f to its A argument x produces a result of type B. Find the symbol B on the left, place it directly in the type slot, and press Check. Your submission is the type B.
+1. Check which side of the colon is empty: the judgment reads “Γ ⊢ f x : ?”. The term f x on the left is already supplied and locked; the empty slot is on the right side of the colon, which is the TYPE position! So this puzzle asks you to perform “type inference”—figuring out what type the expression f x has.
+2. Compute the type: from f : A → B and x : A, applying f (which takes an A and returns a B) to x produces a result of type B.
+3. Submit the type: dragging the symbol B from the left into the type hole completes the true judgment f x : B.
 
-Types can themselves be referenced using symbol blocks. Look at the slot's position when reading a problem: most levels ask you to construct a term of a given type; this one asks you to describe an existing term's type. The fixed f x is already provided, so building f x again in the hole fills the wrong role.`
+Always notice which side of the colon is empty: the left side asks you to build a term (a program or proof), while the right side asks you to name a type (a specification or proposition)—and types can be placed directly as blocks too.`
   },
   L7: {
-    'zh-CN': `这里也要填写已有项 f a 的类型。现在 f : (x : A) → B x，其中 B : A → Type 是类型族：输入不同的 A 类型值，得到的结果类型也可以跟着变化。
+    'zh-CN': `画布上冒号右边的答案，是一块由 B 和 a 组成的应用积木：B a。为什么一个“类型”位置里也会出现“函数应用”呢？这正是依赖类型的精彩之处！
 
-把 f 的参数 x 换成实际传入的 a，结果类型就得到 B a。拖出应用积木，函数位置放类型族 B，参数位置放 a，把组成的 B a 接到类型空槽。
+我们按步骤追踪一下类型检查器是怎么算的：
+1. 先看函数 f 的接口：f : Π (x : A) → B x。和普通箭头 A → B 不同，这里的返回类型写着“B x”——它用到了输入变量 x 的名字！
+2. 进行参数替换：当左侧给定的项把具体参数 a 传给 f（写成 f a）时，f 的返回类型也要同步把 x 替换成实际传入的参数 a，于是结果类型就变成了 B a。
+3. 为什么不能只填一个单独的 B？看看条件区 B 的类型：B : A → Type。这说明单独的 B 还只是一台“吃进 A 才能产出类型”的类型族（函数），它自己并不是一个具体类型（Type 0）。只有用应用积木把 a 喂给 B，组成的 B a 才真正产出一个具体的类型！
 
-这正是依赖函数的用法：返回类型可以引用输入的值。单独的 B 仍然是一个等待参数的类型族；本题需要的是它在 a 处给出的具体类型 B a。留意这里应用的是 B，题目中的 f a 已经固定好了。`,
-    en: `Again, submit the type of a fixed term, this time f a. Now f : (x : A) → B x, where B : A → Type is a type family: its resulting type may change with its A input.
+选一下冒号右边的 B a 看看：题目左边的 f a 是项层面的应用，而右边填的 B a 则是类型层面的应用，两者配合得天衣无缝！`,
+    en: `In the type slot on the right of the colon, the answer is the application block B a. Seeing a function application inside a TYPE slot might look surprising at first—that is the magic of dependent types!
 
-Replace the parameter x with the actual argument a to obtain the result type B a. Use an application block with the type family B in the function slot and a in the argument slot, then put B a in the type hole.
+Let's trace how the type checker computes it:
+1. Read f's dependent type: f : Π (x : A) → B x. Unlike an ordinary arrow A → B, the return type B x mentions the input variable x.
+2. Substitute the actual argument: in the given term f a, the function f is being applied to the specific argument a. Replacing x with a in the return type B x tells us that f a has type B a.
+3. Why isn't bare B enough? Look at B's declaration: B : A → Type. B is a type family—a machine waiting for an A before it produces a type! Only when you apply B to a using an application block do you get the concrete type B a.
 
-This is dependent application: the output type may refer to the input value. B alone is still a family waiting for an argument; this problem needs its type at a, namely B a. The application you construct uses B. The term f a is already fixed in the problem.`
+Compare both sides of the colon now: f a on the left is an application at the term level, and B a on the right is the matching application at the type level.`
   },
   L8: {
-    'zh-CN': `目标中的 1 表示单元类型。它的引入规则给出一个规范元素 ★，并规定 ★ : 1。本关要你使用这个规则，构造一个属于单元类型的项。
+    'zh-CN': `答案槽里静静地躺着一颗五角星 ★——这就是单元类型 1 的全部秘密。
 
-从左侧拖出 ★，放进答案槽，再检查即可。工具箱中的 1 用来表示单元类型本身，★ 则是要提交的元素；读冒号两边，可以看出它们各自扮演的角色。
+让我们把刚才学的“类型 vs 项”对应到这一关：
+1. 冒号右边的 1 是“单元类型”的名字（好比一个只准装一颗星星的盒子）。
+2. 冒号左边需要一个属于类型 1 的“项”。根据单元类型的引入规则 ★ : 1，五角星 ★ 就是单元类型唯一且标准的规范元素。
+3. 从工具箱拖出 ★ 放进答案槽，判断就变成了 ★ : 1，检查直接通过！
 
-单元类型适合表达“这里有一个结果，但无需携带额外信息”。先记住这组关系：1 是类型，★ 是它的规范元素。后面的关卡会继续使用这个类型，学习怎样处理一个已知的单元类型值。`,
-    en: `The goal 1 names the unit type. Its introduction rule provides a canonical element ★ and states ★ : 1. This level asks you to use that rule to construct a term belonging to unit.
+顺便提示一下容易踩的小坑：工具箱里同时有“1”和“★”两块积木。千万别把“1”放进答案槽里——“1”是类型（盒子），它的类型是 Type 0，而不是 1；“★”才是真正住在里面的那个项（物品）。记住这组搭档，接下来两关马上就会用到它！`,
+    en: `Sitting in the answer slot is a single star ★—the simplest data constructor in all of MLTT.
 
-Drag ★ from the left into the answer slot and check it. The 1 block represents the unit type itself, while ★ is the element to submit. Reading the two sides of the colon helps distinguish their roles.
+Let's connect the roles on both sides of the colon:
+1. The 1 on the right side is the “unit type” itself (a category containing only one canonical object).
+2. The empty slot on the left side asks for a term belonging to 1. By the unit introduction rule ★ : 1, the star ★ is that canonical element.
+3. Dragging ★ into the answer slot gives the valid judgment ★ : 1.
 
-Unit is useful when a result exists but carries no additional information. Remember the relationship: 1 is a type, and ★ is its canonical element. The following levels will keep using this type to show how to handle an already supplied unit value.`
+Watch out for a common mix-up: the toolbox contains both 1 and ★. The block 1 is the type itself (which has type Type 0), whereas ★ is the element inside it (which has type 1). Remember this pair—the next two levels will show how to consume and compute with it!`
   },
   L9: {
-    'zh-CN': `已知 u : 1、类型族 C : 1 → Type，以及 c : C ★。目标是 C u：需要根据单元值 u，得到类型族在 u 处要求的结果。这就是单元类型的消去规则。
+    'zh-CN': `画布上的答案是 unitrec u C c。它就像把一个未知的单元值 u，安全地翻译成我们在 ★ 处早就准备好的答案 c。我们逐槽对照一下每个积木的职责：
 
-把 unitrec 放进答案槽。它的 u 槽放 u，C 槽放类型族 C，c 槽放基本情况 c，得到 unitrec u C c。积木会把“在 ★ 时怎么办”推广为“处理任意 u : 1”。
+1. 第 1 槽（被消去的单元值）填 u：这是我们手头拿到的那个未知变量 u : 1，我们要对它做情况分析。
+2. 第 2 槽（目标类型族）填 C：条件里给的 C : 1 → Type 说明了“当单元值为某个 x 时，我想要得到的目标类型是 C x”。注意这里要传整个类型族 C，而不是某个具体的 C u 或 C ★。
+3. 第 3 槽（基本情况）填 c：条件里给的 c : C ★ 提供了“当单元值恰好是规范元素 ★ 时，应该交出的具体结果”。
 
-c 的类型写着 C ★，而目标写着 C u；u 还是一个变量，检查器不会直接把它改写成 ★。unitrec 明确提供了这一步依赖消去，所以能够得到所需的 C u。这里直接传入整个类型族 C。`,
-    en: `You have u : 1, a type family C : 1 → Type, and c : C ★. The goal C u asks for the result required by that family at u. The unit elimination rule supplies it.
+把这三样交给 unitrec 后，整个表达式 unitrec u C c 的类型就正好是把类型族 C 应用于 u 的结果——也就是题目要求的 C u！
+思考一下为什么非用 unitrec 不可：因为 u 是一个还没确定具体值的变量，所以 c 的类型 C ★ 和目标类型 C u 在字面上并不相同；unitrec 的作用，就是替检查器合法地完成“对所有单元值，只要在 ★ 处成立就够了”这一步消去推理。`,
+    en: `The completed answer is unitrec u C c. It safely extends the base case c (which works at ★) to any arbitrary unit value u. Let's inspect all three slots of unitrec:
 
-Place unitrec in the answer slot. Fill its u slot with u, its C slot with the family C, and its c slot with the base case c. This builds unitrec u C c, extending “what to do at ★” to any u : 1.
+1. Slot 1 (the unit value being eliminated): u. This is the unknown variable u : 1 that we are analyzing.
+2. Slot 2 (the result type family / motive): C. Here C : 1 → Type tells the eliminator how the desired output type depends on the unit input. Notice we pass the whole family C itself, not C u or C ★.
+3. Slot 3 (the base case at ★): c. Since c : C ★, it tells unitrec what value to produce when the unit input turns out to be ★.
 
-The type of c is written C ★, while the goal is C u. Since u is still a variable, the checker does not simply rewrite it to ★. The eliminator explicitly provides the dependent elimination step needed to obtain C u. Pass the entire family C into the C slot.`
+Putting them together, unitrec u C c has type C u—exactly our goal! Why couldn't we submit c directly? Because u is a variable, so C ★ and C u are not definitionally equal yet; unitrec is the elimination rule that bridges that gap.`
   },
   L10: {
-    'zh-CN': `这关观察单元消去子的计算过程。已知 c : C ★，目标也是 C ★；本关特别要求使用 unitrec，展示消去子遇到规范元素 ★ 时怎样计算。
+    'zh-CN': `画布上冻结好的骨架已经帮我们留好了 unitrec，三个空槽分别填入了 ★、C 和 c，组成 unitrec ★ C c。
 
-把 unitrec 接到答案槽：u 槽放 ★，C 槽放类型族 C，c 槽放 c，构成 unitrec ★ C c。这里把上一关的未知单元值 u，换成了明确的 ★。
+也许你会好奇：“条件区里明明已经现成放着 c : C ★ 了，目标也是 C ★，为什么这关不直接交 c，偏偏要绕一圈写成 unitrec ★ C c 呢？”
+原因就在“计算规则（Computation Rule）”！
+在类型论中，如果一个消去子（unitrec）遇到了它对应类型的规范元素（★），它就会触发计算并化简回去：
+unitrec ★ C c ≡ c
+也就是说，unitrec ★ C c 和 c 不仅类型都是 C ★，而且它们在计算意义上是“定义相等（≡）”的！
 
-计算规则规定 unitrec ★ C c ≡ c，所以这个表达式会归约成基本情况 c。符号 ≡ 表示计算后定义相等。题目给定的 unitrec 骨架被冻结；答案保留这层构造并填好三个输入，直接展示这条计算规则。`,
-    en: `This level examines the computation of unit elimination. You have c : C ★, and the goal is also C ★. The level specifically requires unitrec to demonstrate how the eliminator computes on the canonical element ★.
+这关专门锁定了一层 unitrec 骨架，就是为了让你亲手把上一关第 1 槽里的抽象变量 u，替换成具体的规范元素 ★，亲眼看看“引入（★）遇到消去（unitrec）”时是怎么严丝合缝地对上接口、并归约回基本情况 c 的。`,
+    en: `With the frozen unitrec skeleton filled in, the canvas shows unitrec ★ C c.
 
-Put unitrec in the answer slot: use ★ in the u slot, the family C in the C slot, and c in the c slot. The result is unitrec ★ C c. The unknown u from the previous level has become the explicit element ★.
+You might wonder: “Since c already has type C ★ and the goal is C ★, why did this level lock a unitrec block here instead of letting me submit c directly?”
+To demonstrate the unit type's “computation rule”!
+Whenever an eliminator meets the canonical constructor of its type, it reduces back to the corresponding case:
+unitrec ★ C c ≡ c
+That means unitrec ★ C c and c both have type C ★ and are definitionally equal (≡) by computation.
 
-The computation rule is unitrec ★ C c ≡ c, so the expression reduces to its base case. The symbol ≡ means definitional equality by computation. The problem freezes a unitrec skeleton. The answer completes its three inputs and retains that construction to demonstrate the computation rule.`
+By freezing the outer unitrec shell, the puzzle lets you swap the abstract variable u from the last level for the concrete element ★, so you can verify firsthand how introduction (★) and elimination (unitrec) fit together and compute back to c.`
   },
   L11: {
-    'zh-CN': `0 表示空类型，它没有构造元素的引入规则。题目把 e : 0 作为一个已有假设交给你，目标是任意类型 A；现在要学习怎样使用这个特殊的假设。
+    'zh-CN': `这关的答案非常干脆：一块 absurd 积木，里面接上条件区的假设 e，组成 absurd e。
 
-把 absurd 积木放进答案槽，再把 e 接到它的输入位置，得到 absurd e。空类型的消去规则允许从一个 e : 0 构造任意目标类型的项，目标槽会告诉它本次需要 A。
+让我们理清这背后的逻辑美感：
+1. 空类型 0 没有任何构造函数，所以你永远不可能亲手捏出一个 0 类型的项。
+2. 但本题的条件区给你提供了一个“反证假设” e : 0（就好像在反证法里，我们先假设推出了一条矛盾）。
+3. 拿到 e : 0 后，把它放进 absurd 积木里，absurd 就会利用“空类型没有需要讨论的情况（0 个分支）”这条消去规则，直接变出目标位置所要求的任意类型 A 的项！
 
-可以把这理解为处理一个不可能发生的分支：空类型没有需要逐一考虑的构造情况，因此这里也没有分支要填。你使用的是题目给定的 e；这条规则本身不会凭空创建一个空类型元素。`,
-    en: `The type 0 is empty: it has no introduction rule for constructing elements. The problem supplies e : 0 as a hypothesis and asks for an arbitrary type A. You are learning how to use that special hypothesis.
+你可以试着点选答案槽里的 absurd e，看看它推断出的类型是不是已经自动变成了 A。记得分清两件事：absurd 负责“使用”一个已有的空类型假设 e，而不是“凭空造出”一个 0 类型的元素；如果没有条件区给你的 e : 0，任何人都填不出 absurd 的插槽哦。`,
+    en: `The completed answer is short and crisp: absurd e.
 
-Put an absurd block in the answer slot and connect e to its input, forming absurd e. Empty elimination allows a term of any target type to be constructed from e : 0. The answer slot tells it that the current target is A.
+Let's appreciate why this works:
+1. Because the empty type 0 has no introduction rule, you can never construct an element of 0 from nothing.
+2. However, the context supplies a hypothesis e : 0—much like assuming a contradiction in a proof by contradiction.
+3. Passing e to the absurd block invokes empty elimination: since type 0 has zero possible constructors, there are zero cases to handle, so absurd e immediately produces a term of whatever target type A the judgment requests!
 
-Think of this as handling an impossible branch. Empty has no constructor cases to consider, so there are no branches to fill in. You are using the supplied e; the elimination rule itself does not create an element of the empty type from nothing.`
+Click the absurd e block on the canvas and watch its checked type match A. Keep the boundary clear too: absurd consumes an existing contradiction e : 0 from your context; it can never create an element of 0 out of thin air.`
   },
   L12: {
-    'zh-CN': `目标 A × B 要求一个序对：第一部分具有类型 A，第二部分具有类型 B。题目已经给了 a : A 和 b : B，正好可以分别提供这两个部分。
+    'zh-CN': `参考答案用配对积木 ⟨ , ⟩ 把 a 和 b 装在了一起：左槽放 a，右槽放 b，组成 ⟨a, b⟩。
 
-把配对积木放进答案槽，左槽放 a，右槽放 b，组成 ⟨a, b⟩。序对会把两个项保存到一个结果里，它们在各自位置上都要满足对应的类型要求。
+对照一下目标类型 A × B，看看为什么顺序和积木都不能错：
+1. 为什么用配对积木 ⟨ , ⟩ 而不用 Σ 积木？因为空槽在冒号左边（项的位置），我们要交出一份“打包好的实物”，而不是“打包盒的规格书（类型）”。Σ 积木是用来写类型 A × B 的，⟨ , ⟩ 才是用来造序对的！
+2. 为什么 a 在左、b 在右？目标 A × B（即 Σ (_ : A) × B）明确规定第一部分必须具有类型 A，第二部分必须具有类型 B。条件里恰好给了 a : A 和 b : B，对号入座放进左右两格，类型检查就顺利通过了。
 
-这个积类型也能写成第二部分不依赖第一部分的 Σ 类型。顺序体现了类型结构：A × B 的第一项要符合 A，第二项要符合 B。后面会进一步学习如何拆开一对，并使用拆出的两个成员。`,
-    en: `The goal A × B asks for an ordered pair whose first component has type A and whose second has type B. The supplied a : A and b : B provide exactly those two components.
+就像逻辑里的“且（合取）”一样：想要证明 A × B 成立，就必须把 A 的证据 a 和 B 的证据 b 一起打包呈上来。下一关我们就要把这样打包好的包裹拆开了！`,
+    en: `The reference answer uses a pair block ⟨ , ⟩ with a on the left and b on the right, forming ⟨a, b⟩.
 
-Put a pair block in the answer slot, with a in its left slot and b in its right slot, forming ⟨a, b⟩. A pair stores two terms in one result, and each component must satisfy the type required by its position.
+Let's check why both the choice of block and the order of its slots matter:
+1. Why the pair block ⟨ , ⟩ instead of Σ? The empty slot is on the left of the colon, so we need a term (an actual pair), not a type specification! Σ builds the pair type A × B, whereas ⟨ , ⟩ constructs an element of that type.
+2. Why a on the left and b on the right? The goal A × B specifies an A in the first position and a B in the second position. Matching a : A to the left slot and b : B to the right slot satisfies both requirements.
 
-This product is also a Σ-type whose second component does not depend on the first. Order reflects the type structure: the first component of A × B must fit A, and the second must fit B. The next levels show how to unpack a pair and use its components.`
+Just like logical conjunction (“A and B”), proving A × B means bundling together a proof of A and a proof of B. In the next level, we'll learn how to unpack a pair back into its pieces!`
   },
   L13: {
-    'zh-CN': `目标 (Σ x : A. B x) → A 要求一个函数：接收依赖对，取出第一部分。对中的第二部分类型会依赖第一部分，但本关只需要返回那个 A。
+    'zh-CN': `这关的答案结构稍微长一点，写成：λp. sigma_ind p (λ_. A) (λa b. a)。别被长度吓到，我们按外到内的顺序拆成 4 小步，每一步都非常直观：
 
-先放 λ，把输入命名为 p；函数体放 sigma_ind。它的 p = 槽放外层 p，“目标族 λ _ ▸”后的空槽放 A，表示结果类型始终是 A。“归纳步骤 λ a λ b ▸”后的空槽放该步骤绑定的 a。
+1. 外层用 λ 引入参数 p：因为目标是函数类型 (Σ x : A. B x) → A，我们先用 λ 接收传入的依赖对，起名叫 p。此时 p : Σ x : A. B x，而我们需要在函数体里算出一个 A。
+2. 用 sigma_ind 拆开 p（第 1 槽“p =”填 p）：把刚才收到的包裹 p 交给 sigma_ind 消去子。
+3. 告诉检查器最终想要什么类型（第 2 槽“目标族 λ _ ▸”填 A）：不管拆开哪个包裹 p，我们整个消去过程最终想返回的结果类型永远是 A。
+4. 在拆包步骤里取出第一项（第 3 槽“归纳步骤 λ a λ b ▸”填 a）：这一行积木已经贴心地为你拆出了局部的 a : A 和 b : B a。我们要的是 A，当然就把这个步骤里的局部参数 a 返回出去！
 
-sigma_ind 把 p 按序对拆开，让步骤中可用 a : A、b : B a。积木已经带好了目标族和步骤的 λ，直接在它们后面填表达式即可。完成后相当于定义了 fst，返回每个依赖对的第一部分。`,
-    en: `The goal (Σ x : A. B x) → A asks for a function that receives a dependent pair and returns its first component. The second component's type depends on the first, but this level only needs the A component.
+合起来，这段程序就定义了依赖对的“第一投影函数 fst”：把任意依赖对的第一部分安全地取出来。你可以点击步骤里的 a 看看，它的作用域仅限于那一行归纳步骤内部哦。`,
+    en: `The completed answer looks a bit longer here—λp. sigma_ind p (λ_. A) (λa b. a)—but if we read it from outside in, every piece has a clear job:
 
-Start with λ and name its input p. Put sigma_ind in its body. Fill the p = slot with outer p. Put A after “motive λ _ ▸”, making the result type constantly A. After “step λ a λ b ▸”, put the a bound by that step.
+1. Outer λ binds p: because the goal is the function type (Σ x : A. B x) → A, we start with λ to accept the incoming dependent pair as p : Σ x : A. B x. Now the body needs to return an A.
+2. Unpack p with sigma_ind (“p =” slot gets p): pass that outer variable p into the eliminator to take it apart.
+3. State the target type (“motive λ _ ▸” slot gets A): tell the checker that no matter which pair p we unpack, the elimination will produce a result of type A.
+4. Return the first member (“step λ a λ b ▸” slot gets a): inside the step slot, sigma_ind automatically binds two local variables for the unpacked pieces—a : A and b : B a. Since we want an A, returning the step's local a matches the motive!
 
-The eliminator unpacks p so that the step has a : A and b : B a. The block already supplies the motive and step lambdas; fill their expression slots directly. The completed function defines fst, returning the first component of each dependent pair.`
+Together, this defines the first projection fst for any dependent pair. Click the a inside the step slot to see its type and notice that a belongs strictly to that step's local scope.`
   },
   L14: {
-    'zh-CN': `目标 (A × B) → B 要求从序对取出第二部分。这里的 B 是固定类型，序对的第二成员不依赖第一成员，所以拆开后可以直接把它作为结果返回。
+    'zh-CN': `对比一下上一关，你会发现本关的答案 λp. sigma_ind p (λ_. B) (λa b. b) 几乎一模一样，只是把两个地方从 A / a 换成了 B / b：
 
-先用 λ 引入 p，在函数体里放 sigma_ind。p = 槽放外层 p；“目标族 λ _ ▸”后的空槽填 B；“归纳步骤 λ a λ b ▸”后的空槽填这一步绑定的 b。完整结构与上一关相同，返回成员换成了第二个。
+1. 外层 λ 引入 p : A × B，然后放进 sigma_ind 的“p =”槽，准备拆开这个序对。
+2. 修改“目标族 λ _ ▸”槽为 B：这一关的目标函数类型是 (A × B) → B，所以我们要声明整个消去结果的类型是 B。
+3. 修改“归纳步骤 λ a λ b ▸”槽为 b：拆开 A × B 后，这一步自动拥有局部变量 a : A 和 b : B。为了符合目标类型 B，我们返回这里的局部变量 b！
 
-目标族说明整个消去过程要得到什么类型，步骤说明拿到成员后怎样构造结果。这里步骤中的 a : A、b : B，因此返回 b 正好满足 B。使用步骤自己的局部变量，并把它留在对应步骤的作用域里。`,
-    en: `The goal (A × B) → B asks you to extract a pair's second component. Here B is a fixed type, independent of the first component, so the second member can be returned directly after unpacking.
+这样我们就亲手用 sigma_ind 定义出了“第二投影函数 snd”。顺便体会一下它和上一关的联系：因为这里第二项的类型 B 不依赖第一项 a，所以目标族才可以简单写成常量 B，最终让任意 A × B 都能干净地取出它的第二部分。`,
+    en: `Compare this answer with the previous level: λp. sigma_ind p (λ_. B) (λa b. b) has the exact same structure, with B and b taking the place of A and a:
 
-Introduce p with λ and put sigma_ind in its body. Fill p = with outer p, put B after “motive λ _ ▸”, and put the step's own b after “step λ a λ b ▸”. The structure matches the previous level, but returns the second member.
+1. Outer λ introduces p : A × B, and the “p =” slot of sigma_ind receives that p to unpack it.
+2. The “motive λ _ ▸” slot is now B, matching the goal (A × B) → B that asks for a result of type B.
+3. Inside the “step λ a λ b ▸” slot, unpacking gives us local variables a : A and b : B, so we return the step's local b to satisfy the motive B!
 
-The motive states the result type of the elimination, and the step explains how to produce that result from the members. Here the step has a : A and b : B, so b fits the target B. Use the variable bound by this step and keep its reference inside that step's scope.`
+That defines the second projection snd using sigma_ind. Notice why a constant motive B works cleanly here: in the non-dependent product A × B, the second component's type B doesn't depend on the first component a at all.`
   },
   L15: {
-    'zh-CN': `Id A a a 是一个恒等类型，表达“A 中的 a 与它自己相等”。本关要在答案槽中放入这个类型的证明。相等两边都是同一个项，正好可以使用自反性。
+    'zh-CN': `画布上的答案只有一个干脆的积木：refl。它代表“自反性（Reflexivity）”，意思是“任何东西都天然等于它自己”。
 
-从左侧拖出 refl，直接放进答案槽，再点击检查。refl 会从目标槽得知正在证明哪个类型、哪两个端点的相等，所以这里无须给它另填参数。
+为什么连参数都不用给 refl 填，直接拖进去就能证明 Id A a a 呢？
+1. 双向类型检查的功劳：答案槽已经从题目目标得知当前要证明的是 Id A a a（类型是 A，等式左端是 a，右端也是 a），所以检查器在检验 refl 时，会自动去比对左右两端是不是定义相等！
+2. 区分命题与证明：Id 积木用来写出“a 等于 a”这个命题（类型），而 refl 才是这个命题的证据（证明项）。本关目标已经把 Id A a a 写好放在冒号右边了，我们需要在冒号左边提交证明，所以选 refl 就对啦。
 
-Id 积木用于构造相等命题的类型，refl 用于构造自反相等的证明。检查器还会计算表达式：当两端经过计算得到定义相等的结果时，也可以用 refl。当前这关从最直接的 a 与 a 开始。`,
-    en: `Id A a a is an identity type expressing that a in A equals itself. The answer slot asks for a proof of this type. Both endpoints are the same term, so reflexivity applies immediately.
+小预告：只要等式两边在“计算之后”能变成完全一样的表达式（比如 2 + 2 和 4 计算后都是 4），统统都可以只用一个 refl 直接证出来哦！`,
+    en: `The reference answer is just a single block: refl (short for “reflexivity”—everything is equal to itself).
 
-Drag refl from the left directly into the answer slot, then check it. The goal tells refl which type and endpoints are involved, so no additional parameter slots need to be filled here.
+Why doesn't refl need any slots filled in to prove Id A a a?
+1. Bidirectional checking handles it: the goal on the right of the colon already tells the checker that we are proving Id A a a (in type A, comparing a on the left with a on the right). When checking refl, the type checker automatically verifies that the two endpoints are equal!
+2. Proposition vs. proof: the Id block constructs the equality proposition (a type), whereas refl constructs a proof of that proposition (a term). Because Id A a a is already fixed as the goal type, the term slot needs refl.
 
-The Id block constructs the type of an equality statement; refl constructs a reflexivity proof. The checker also computes expressions: refl can be used when the endpoints become definitionally equal by computation. This level starts with the simplest case, a compared with a itself.`
+Fun fact: refl doesn't only work when both sides look identical character-for-character—whenever both sides compute to the same result (like 2 + 2 and 4), a single refl proves them equal too!`
   },
   L16: {
-    'zh-CN': `类型也可以作为项来使用。Type 0 是一个宇宙，用来容纳这一层的类型；它自身又具有更高一层的类型 Type 1。目标正是要求提供一个具有类型 Type 1 的项。
+    'zh-CN': `答案槽里的积木写着 Type 0。让我们最后确认一遍宇宙层级的规则，为什么 Type 0 恰好是目标 Type 1 的合法答案：
 
-拖出宇宙积木 Type，把层级选为 0，再放进答案槽。检查的关系是 Type 0 : Type 1。积木默认层级就是 0，可以先确认数字后直接提交。
+1. 题目要求：冒号右边是 Type 1，这意味着冒号左边需要提交一个“住在第 1 层宇宙里的项”。
+2. 宇宙积木的作用：拖出宇宙积木 Type，它上面的数字决定这是第几层宇宙。保持默认层级 0 时，它就代表第 0 层宇宙 Type 0——里面住着所有普通类型（像 1、0、A × B）。
+3. 层级逐级上升：在 MLTT 的宇宙层级里，每一层宇宙本身都是上一层宇宙里的一个合法对象，即 Type 0 : Type 1、Type 1 : Type 2、Type 2 : Type 3……以此类推。
 
-宇宙按层级逐层上升：Type 1 又属于 Type 2，以此类推。留意当前正在构造哪一层的项；如果把积木层级改成 1，它的类型也会随之升到 Type 2。通过宇宙，我们可以在表达式中继续讨论和构造类型。`,
-    en: `Types can also be used as terms. Type 0 is a universe containing types at that level, and it itself has the higher type Type 1. The goal asks you to provide a term whose type is Type 1.
+你可以试着把宇宙积木上的数字从 0 改成 1：你会发现它的类型立刻跟着跳到了 Type 2，也就不再符合本关的 Type 1 目标了。通过这套井然有序的层级阶梯，类型论既能把类型当成普通对象来操作，又完美避开了“自己包含自己”的逻辑悖论！`,
+    en: `Inside the answer slot sits the universe block Type 0. Let's review why Type 0 satisfies the target Type 1:
 
-Drag out a universe block, set its level to 0, and put it in the answer slot. The checked relationship is Type 0 : Type 1. The block defaults to level 0, so confirm the number and submit it.
+1. Read the goal: the right side of the colon is Type 1, asking for a term that lives inside the level-1 universe.
+2. Check the universe block: the number on the Type block selects its universe level. At its default level 0, the block represents Type 0—the universe containing ordinary types like 1, 0, and A × B.
+3. Follow the hierarchy: in MLTT, each universe is an element of the next higher universe, giving Type 0 : Type 1, Type 1 : Type 2, and so on.
 
-Universes continue upward: Type 1 has type Type 2, and so on. Keep track of which level's term you are building. Changing the block's level to 1 changes its type to Type 2. Universes let expressions discuss and construct types themselves.`
+Try changing the block's level from 0 to 1 on the canvas and watch its checked type jump to Type 2 (which would no longer match Type 1). By stepping up one level at a time, MLTT lets us treat types as first-class terms without falling into self-referential paradoxes.`
   },
   R0: {
-    'zh-CN': `共同条件先声明 A、B 是类型，以及 f : A → B、x : A。它们提供这一步可以引用的名字；横线上方的两个前提分别选取函数 f 和参数 x。
+    'zh-CN': `画布上呈现的是一步完整搭建好的“函数应用推导图”。我们像读一张逻辑清单一样，从上往下走一遍它是如何通过检查的：
 
-规则槽填入 Π-elim，也就是函数应用的消去规则。f 的输入类型是 A，x 恰好具有类型 A，因此这两个前提能够组合。横线下方构造应用项 f x，并在结论判断中确认它具有类型 B。
+1. 顶部共同条件 Γ：声明了类型 A、B，函数 f : A → B，以及参数 x : A。这些都是本步推理共享的可用资源。
+2. 横线上方的两个前提：第一格放了函数 f，第二格放了参数 x。注意顺序不能反——必须先给函数，再给参数。
+3. 横线右侧的规则 Π-elim：代表“Π 类型的消去规则（也就是函数应用）”。它告诉检查器：请把第一个前提当作函数、第二个前提当作参数来组合。
+4. 横线下方的结论 Γ ⊢ f x : B：在结论判断的项位置构造了 f x，冒号右边确认它的类型是 B。注意结论里 Γ 旁边的可选条件槽是留空的，这表示直接继承顶部的共同条件，不用再重写一遍。
 
-查看答案时，可以沿着“函数的输入要求—参数的实际类型—应用后的返回类型”读完整张卡。前提数量、参数顺序、规则和结论都要吻合；横线表达推理的依据，Γ 记录共享声明。结论中 Γ 旁的可选条件槽留空，表示继承顶部条件，解答已经完整。`,
-    en: `The shared context declares A and B as types, f : A → B, and x : A. These declarations make the names available. The two premises select the function f and its argument x.
+总结一下：在普通关卡里，检查器在后台默默做掉了这些核对；而在推导卡里，你把“前提是谁、依据哪条规则、得出什么结论”全都明明白白地摆在了台面上！`,
+    en: `The canvas now shows a complete deduction step for function application. Let's read the diagram from top to bottom to see how all its parts agree:
 
-The rule slot contains Π-elim, the elimination rule for function application. The input type of f is A, and x has exactly that type, so the premises combine. The conclusion constructs f x and checks that its type is B.
+1. Shared context Γ at the top: declares A : Type, B : Type, f : A → B, and x : A as the resources available for this inference.
+2. Two premises above the bar: the first slot holds the function f, and the second slot holds its argument x. Order matters here—function first, argument second.
+3. Rule Π-elim beside the bar: names “Π-elimination” (function application). It tells the checker to match the first premise as a function of type A → B and the second premise as its A argument.
+4. Conclusion Γ ⊢ f x : B below the bar: constructs the resulting application term f x and confirms its type is B. Notice that the optional context slot beside Γ in the conclusion stays empty, which means it automatically inherits the shared declarations at the top.
 
-Read the diagram by following the function's required input type, the argument's actual type, and the result type after application. The premise count, order, rule, and conclusion agree. The bar records the inference step; Γ records its shared declarations. The optional context slot beside Γ in the conclusion stays empty to inherit the outer context; this is a complete answer.`
+Whereas regular levels run this check behind the scenes, this inference card puts the premises, the rule, and the resulting conclusion right out in the open.`
   },
   R1: {
-    'zh-CN': `这份答案把前提也明确写成判断：第一张是 Γ ⊢ f : A → B，第二张是 Γ ⊢ x : A。它们都沿用外层共同条件，所以内部的 Γ 表示同一组可用声明，而没有重新增加假设。
+    'zh-CN': `和上一关 R0 相比，这一关的答案把横线上方的两个前提升级成了完整的紫色判断卡，展现了形式逻辑中最标准的推导写法：
 
-Π-elim 将这两个已检查的前提组合起来。结论项是 f x，结论类型是 B。声明 f : A → B 提供一个函数，前提判断确认它符合当前推理需要，横线则说明如何从前提得到结论。
+1. 上方第一张前提判断：Γ ⊢ f : A → B。它不仅指出了要用 f，还明确检查了“在条件 Γ 下，f 确实具有函数类型 A → B”。
+2. 上方第二张前提判断：Γ ⊢ x : A。它明确检查了“在同样的条件 Γ 下，x 确实具有参数类型 A”。
+   • 小细节：这两张前提卡片内部 Γ 旁边的附加条件槽都是空的，表示它们完全共享顶部的条件 Γ，没有引入任何额外假设。
+3. 横线与规则 Π-elim：把上述两张已经通过检验的前提判断连接起来，依据 Π-elim 规则，名正言顺地推出下方的结论判断 Γ ⊢ f x : B！
 
-整张推导卡仍然可以放进更大的构造中：它产生的项与普通应用 f x 相同。检查器会核对判断类型和结论的定义相等。内层 Γ 旁的可选条件槽留空，表示共用顶部声明，无需再填一次。`,
-    en: `The answer writes the premises as explicit judgments: Γ ⊢ f : A → B and Γ ⊢ x : A. Both inherit the outer shared context. Their Γ refers to the same available declarations and introduces no additional hypotheses.
+整张推导大卡片本身也可以被当成一个具有类型 B 的项来使用（它的计算行为和普通的应用积木 f x 完全一样）。学会读懂“单张判断（⊢）”和“前提推结论（横线）”这两层结构，你就真正看懂了类型论教材里那些推导规则的记号了！`,
+    en: `Compared with R0, the answer here writes both premises above the bar as full purple judgment cards—the complete textbook notation for an inference rule:
 
-Π-elim combines these checked premises. The conclusion term is f x, and its type is B. The declaration supplies the function, the premise judgment checks its role in this step, and the bar records how the premises justify the conclusion.
+1. First premise judgment: Γ ⊢ f : A → B. Rather than just naming f, it explicitly establishes that under context Γ, f has function type A → B.
+2. Second premise judgment: Γ ⊢ x : A. Under that same context Γ, it establishes that x has argument type A.
+   • Notice that the optional extra-context slots beside Γ inside these premise cards are left empty: they inherit the top shared context directly without adding new hypotheses.
+3. Rule Π-elim and conclusion: combining these two checked premise judgments, Π-elim justifies the conclusion judgment Γ ⊢ f x : B below the bar!
 
-This inference card can itself occur inside a larger construction: it produces the same term as the ordinary application f x. Checking verifies both the stated types and definitional equality of the conclusion with the rule's result. Empty optional context slots beside the inner Γ inherit the top declarations and need no additional filling.`
+Just like a regular f x block, this entire inference card produces a valid term of type B. Once you can read both levels—an individual judgment (⊢) and a rule step (the horizontal bar)—you can read the formal inference rules in any type theory textbook!`
   }
 };

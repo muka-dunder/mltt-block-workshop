@@ -151,6 +151,9 @@ main {
 
 .actions { grid-area: actions; display: flex; align-items: center; gap: 8px; min-width: 0; }
 .actions button { padding: 7px 14px; white-space: nowrap; }
+.github-link { color: var(--muted); font-size: 12px; white-space: nowrap; text-decoration: none; padding: 7px 4px; text-align: center; }
+.github-link:hover { color: var(--text); text-decoration: underline; }
+.github-link:focus-visible { outline: 2px solid var(--accent2); outline-offset: 2px; border-radius: 4px; }
 
 button {
   border: 1px solid var(--line);
@@ -317,7 +320,7 @@ button:focus-visible, summary:focus-visible { outline: 2px solid var(--accent2);
   .workspace-controls { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }
   .workspace-controls #modeSelect, .workspace-controls #languageSelect, .workspace-controls #librarySelect { width: 100%; max-width: none; }
   .workspace-controls #librarySelect { grid-column: 1 / -1; }
-  .actions { display: grid; grid-template-columns: repeat(3, 1fr); width: 100%; gap: 6px; }
+  .actions { display: grid; grid-template-columns: repeat(4, 1fr); width: 100%; gap: 6px; }
   .actions button { padding: 7px 9px; min-width: 0; font-size: 12px; }
   .status { font-size: 12px; }
 }

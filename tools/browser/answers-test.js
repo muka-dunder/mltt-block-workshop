@@ -26,9 +26,11 @@ const { chromium } = require('playwright');
       return tab.evaluate(async () => {
         __mltt.refreshVars(); __mltt.refreshWorkshop();
         const root = __mltt.workspace.getBlocksByType('tt_problem')[0];
-        for (const block of root.getDescendants(false).reverse()) block.render();
         __mltt.notes.refresh();
         await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        const missing = root.getDescendants(false).filter(block => !block.isCollapsed() &&
+          (!block.pathObject.svgPath.getAttribute('d') || block.getHeightWidth().width === 0));
+        if (missing.length) throw new Error('Restored blocks were not drawn: ' + missing.map(block => block.type + ':' + block.id).join(', '));
         const session = __mltt.exportSession();
         delete session.answerState;
         // Automatic wrapping and right-side tutorial coordinates are derived
@@ -85,6 +87,7 @@ const { chromium } = require('playwright');
         w.getBlocksByType('tt_problem')[0].getInputTargetBlock('TERM').getInput('TERM').connection.connect(lambda.outputConnection);
       });
       await page.evaluate(() => { const w = __mltt.workspace; w.scroll(w.scrollX + 5, w.scrollY + 4); });
+      await page.evaluate(() => Blockly.common.setSelected(__mltt.workspace.getBlocksByType('tt_problem')[0]));
       const before = await scene(page);
       const questionExplanation = await page.locator('.note-card[data-kind="tutorial"] textarea').inputValue();
       await page.click('#viewAnswerBtn');

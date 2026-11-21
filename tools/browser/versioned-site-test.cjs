@@ -84,6 +84,11 @@ const { chromium } = require('playwright');
       assert(await local.locator('#status').evaluate(element => element.classList.contains('ok')), 'Offline answer checks for level ' + i);
       await local.click('#viewAnswerBtn');
       await local.waitForFunction(() => !__mltt.answerPreview.active);
+      assert(await local.evaluate(async () => {
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        return __mltt.workspace.getBlocksByType('tt_problem')[0].getDescendants(false).every(block =>
+          block.getHeightWidth().width > 0 && !!block.pathObject.svgPath.getAttribute('d'));
+      }), 'Returning from the offline answer must draw every block for level ' + i);
     }
     await local.selectOption('#modeSelect', 'custom');
     const offlineId = await local.evaluate(() => {

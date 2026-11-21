@@ -82,6 +82,7 @@ import { createAnswerPreview } from './problems/solutions.js';
       window.BlockFreeze.withChanges(workspace, () => workspace.clear());
       workspace.updateToolbox(toolboxXml());
       Blockly.serialization.workspaces.load(serialized, workspace);
+      for (const block of workspace.getAllBlocks(false).reverse()) block.render();
       answerBlock = ensureAnswer();
       workspace.setScale(view.scale);
       workspace.scroll(view.x, view.y);

@@ -1,6 +1,6 @@
 {
   "name": "mltt-block-workshop",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "private": true,
   "description": "A bilingual Blockly workshop for Martin-Lof type theory with real-time bidirectional type checking.",
   "scripts": {

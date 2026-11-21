@@ -108,6 +108,8 @@ export function createCustomMode({ workspace, state, notes, levels, loadLevel, r
       Blockly.Events.disable();
       window.BlockFreeze.withChanges(workspace, () => workspace.clear());
       Blockly.serialization.workspaces.load(payload.workspace, workspace);
+      // Imported descendants need dimensions before context wrapping measures them.
+      for (const block of workspace.getAllBlocks(false).reverse()) block.render();
       if (restoreNotes && Array.isArray(payload.notes)) notes().importState(payload.notes);
     } finally { Blockly.Events.enable(); state.loading = false; }
     refresh(); renderUI(); Blockly.svgResize(workspace);
